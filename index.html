@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2048 Smooth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Arcade Puzzle</p>
+        <h1>2048 Smooth</h1>
+        <p class="lead">
+          Desliza con un movimiento sedoso, fusiones con ritmo y un estallido visual cuando llegues a 32 o m&aacute;s.
+        </p>
+      </div>
+      <div class="hud">
+        <div class="score-card">
+          <span>Puntuaci&oacute;n</span>
+          <strong id="score">0</strong>
+        </div>
+        <div class="score-card">
+          <span>Mejor</span>
+          <strong id="best-score">0</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="controls">
+      <p>Usa <kbd>W A S D</kbd> o <kbd>&uarr; &larr; &darr; &rarr;</kbd></p>
+      <div class="control-actions">
+        <label class="size-picker" for="board-size">
+          <span>Tablero</span>
+          <select id="board-size">
+            <option value="4">4 x 4</option>
+            <option value="5">5 x 5</option>
+            <option value="6">6 x 6</option>
+            <option value="8">8 x 8</option>
+          </select>
+        </label>
+        <button id="restart-button" type="button">Nueva partida</button>
+      </div>
+    </section>
+
+    <section class="board-panel">
+      <div class="board-frame">
+        <div id="board" class="board" aria-label="Tablero de 2048"></div>
+        <div id="fx-layer" class="fx-layer" aria-hidden="true"></div>
+      </div>
+      <div id="status" class="status" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <script src="./script.js"></script>
+</body>
+</html>
