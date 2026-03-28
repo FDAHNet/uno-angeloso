@@ -1504,10 +1504,10 @@ function discardReplayState() {
   replayControlsElement.classList.add("hidden");
   replayProgressElement.textContent = "";
   replayModeLabelElement.textContent = "STOP";
+  setReplayVisualState(false);
   updateReplayArrow("");
   const boardFrame = document.querySelector(".board-frame");
   boardFrame.classList.remove("is-replay", "replay-wipe");
-  replayIndicatorElement.classList.add("hidden");
   renderGameTimer();
   renderJournal();
 }
