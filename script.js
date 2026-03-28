@@ -26,6 +26,7 @@ const recordsPanelElement = document.getElementById("records-panel");
 const toggleRecordsButton = document.getElementById("toggle-records-button");
 const globalRecordsGroupsElement = document.getElementById("global-records-groups");
 const journalListElement = document.getElementById("journal-list");
+const journalSubtitleElement = document.getElementById("journal-subtitle");
 const uiFxLayerElement = document.getElementById("ui-fx-layer");
 const starfieldElement = document.getElementById("starfield");
 const attractOverlayElement = document.getElementById("attract-overlay");
@@ -37,6 +38,7 @@ const replayEmptyElement = document.getElementById("replay-empty");
 const replayControlsElement = document.getElementById("replay-controls");
 const replayProgressElement = document.getElementById("replay-progress");
 const replayModeLabelElement = document.getElementById("replay-mode-label");
+const replayArrowOverlayElement = document.getElementById("replay-arrow-overlay");
 const closeReplayButton = document.getElementById("close-replay-button");
 const replayFirstButton = document.getElementById("replay-first-button");
 const replayPrevButton = document.getElementById("replay-prev-button");
@@ -452,6 +454,37 @@ function renderRecords() {
 function renderJournal() {
   journalListElement.innerHTML = "";
 
+  if (replayMode && replaySession?.replay) {
+    journalSubtitleElement.textContent = "Pulsa una direccion y sigue el movimiento paso a paso.";
+    const turns = replaySession.replay.turns || [];
+    if (!turns.length) {
+      const empty = document.createElement("div");
+      empty.className = "journal-entry journal-entry-empty";
+      empty.textContent = "Esta replay no tiene movimientos guardados.";
+      journalListElement.appendChild(empty);
+      return;
+    }
+
+    turns.forEach((turn, index) => {
+      const item = document.createElement("div");
+      item.className = "journal-entry";
+      item.dataset.replayTurn = String(index + 1);
+      if (index + 1 === replaySession.index) item.classList.add("is-replay-active");
+
+      const time = document.createElement("time");
+      time.textContent = `Paso ${index + 1}`;
+
+      const text = document.createElement("strong");
+      text.textContent = `Pulso ${getDirectionLabel(turn.move)}`;
+
+      item.append(time, text);
+      journalListElement.appendChild(item);
+    });
+    return;
+  }
+
+  journalSubtitleElement.textContent = "Logros de 128 o mas durante la partida.";
+
   if (!journalEntries.length) {
     const empty = document.createElement("div");
     empty.className = "journal-entry journal-entry-empty";
@@ -521,6 +554,34 @@ function animateJournalFlight(entry) {
   targetEntry.classList.add("journal-entry-flash");
   targetEntry.addEventListener("animationend", () => targetEntry.classList.remove("journal-entry-flash"), { once: true });
   flight.addEventListener("animationend", () => flight.remove(), { once: true });
+}
+
+function getDirectionLabel(direction) {
+  const labels = {
+    up: "ARRIBA",
+    down: "ABAJO",
+    left: "IZQUIERDA",
+    right: "DERECHA",
+  };
+  return labels[direction] || direction?.toUpperCase?.() || "";
+}
+
+function getDirectionArrow(direction) {
+  const arrows = {
+    up: "↑",
+    down: "↓",
+    left: "←",
+    right: "→",
+  };
+  return arrows[direction] || "";
+}
+
+function updateReplayArrow(direction = "") {
+  if (!replayArrowOverlayElement) return;
+  const arrow = getDirectionArrow(direction);
+  replayArrowOverlayElement.textContent = arrow;
+  replayArrowOverlayElement.classList.toggle("hidden", !arrow || !replayMode);
+  replayArrowOverlayElement.classList.toggle("is-visible", Boolean(arrow && replayMode));
 }
 
 function renderGlobalRecordsLoading() {
@@ -883,9 +944,11 @@ function discardReplayState() {
   replayControlsElement.classList.add("hidden");
   replayProgressElement.textContent = "";
   replayModeLabelElement.textContent = "STOP";
+  updateReplayArrow("");
   const boardFrame = document.querySelector(".board-frame");
   boardFrame.classList.remove("is-replay", "replay-wipe");
   replayIndicatorElement.classList.add("hidden");
+  renderJournal();
 }
 
 function setReplayVisualState(active) {
@@ -909,6 +972,7 @@ function stopReplayMode() {
   }
   replaySession = null;
   setReplayVisualState(false);
+  updateReplayArrow("");
   if (!replayResumeState) return;
 
   boardSize = replayResumeState.boardSize;
@@ -916,6 +980,7 @@ function stopReplayMode() {
   gameState = cloneGameState(replayResumeState.gameState);
   nextTileId = replayResumeState.nextTileId;
   render();
+  renderJournal();
   setStatus(replayResumeState.statusText);
   replayResumeState = null;
 }
@@ -929,13 +994,19 @@ function updateReplayControls() {
   }
 
   const totalTurns = replaySession.replay.turns.length;
-  replayProgressElement.textContent = `Paso ${replaySession.index} de ${totalTurns}`;
+  replayProgressElement.textContent = `Paso ${replaySession.index} de ${totalTurns} | Puntuacion ${gameState.score}`;
   replayPlayButton.textContent = replaySession.playing ? "Pausa" : "Play";
   replayModeLabelElement.textContent = replaySession.playing ? "PLAY" : (replaySession.index >= totalTurns ? "END" : "PAUSE");
   replayFirstButton.disabled = replaySession.index === 0;
   replayPrevButton.disabled = replaySession.index === 0;
   replayNextButton.disabled = replaySession.index >= totalTurns;
   replayLastButton.disabled = replaySession.index >= totalTurns;
+  renderJournal();
+
+  const activeEntry = journalListElement.querySelector(".journal-entry.is-replay-active");
+  if (activeEntry) {
+    activeEntry.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
 }
 
 function insertReplaySpawn(spawn) {
@@ -1023,6 +1094,8 @@ function setReplayToIndex(index) {
   }
 
   replaySession.index = boundedIndex;
+  const currentTurn = boundedIndex > 0 ? replaySession.replay.turns[boundedIndex - 1] : null;
+  updateReplayArrow(currentTurn?.move || "");
   updateReplayControls();
 
   if (boundedIndex >= replaySession.replay.turns.length) {
@@ -1095,6 +1168,7 @@ function startReplayOnBoard(replay) {
   gameState.cells = Array.from({ length: boardSize }, () => Array(boardSize).fill(null));
   buildGrid();
   render();
+  updateReplayArrow("");
   triggerReplayWipe();
   setReplayVisualState(true);
   setStatus(`Replay ${replay.mode} listo para reproducir.`);

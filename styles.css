@@ -565,6 +565,12 @@ button:hover {
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+.journal-entry.is-replay-active {
+  border-color: color-mix(in srgb, var(--accent) 62%, white 38%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, rgba(255,255,255,0.08)), rgba(255,255,255,0.04));
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 0 18px var(--glow);
+}
+
 .journal-entry time {
   display: block;
   color: var(--accent);
@@ -687,6 +693,26 @@ button:hover {
 .fx-layer {
   z-index: 3;
   pointer-events: none;
+}
+
+.replay-arrow-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  font-family: "Press Start 2P", "Space Grotesk", sans-serif;
+  font-size: clamp(5rem, 18vw, 9rem);
+  line-height: 1;
+  color: color-mix(in srgb, var(--accent) 72%, white 28%);
+  opacity: 0.35;
+  text-shadow: 0 0 22px color-mix(in srgb, var(--accent) 52%, transparent);
+  transition: opacity 160ms ease;
+}
+
+.replay-arrow-overlay.is-visible {
+  animation: replay-arrow-pop 260ms ease;
 }
 
 .game-over-overlay {
@@ -1258,6 +1284,17 @@ button:hover {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes replay-arrow-pop {
+  0% {
+    transform: scale(0.82);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.35;
   }
 }
 
