@@ -1,6 +1,7 @@
 const MOVE_DURATION = 210;
 const REPLAY_MOVE_DURATION = 460;
 const REPLAY_STEP_DELAY = 1180;
+const REPLAY_ARROW_LEAD = 520;
 const EFFECT_DURATION = 5000;
 const STORAGE_PREFIX = "smooth-2048-best-score";
 const RECORDS_PREFIX = "smooth-2048-records";
@@ -1223,7 +1224,9 @@ function discardReplayState() {
 
 function setReplayVisualState(active) {
   const boardFrame = document.querySelector(".board-frame");
+  const sideActions = document.querySelector(".side-actions");
   boardFrame.classList.toggle("is-replay", active);
+  sideActions?.classList.toggle("is-replay-mode", active);
   replayIndicatorElement.classList.toggle("hidden", !active);
 }
 
@@ -1415,11 +1418,16 @@ function scheduleReplayPlayback() {
     return;
   }
 
+  const nextTurn = replaySession.replay.turns[replaySession.index];
+  updateReplayArrow(nextTurn?.move || "");
+
   replayTimer = window.setTimeout(() => {
     if (!replaySession || !replayMode) return;
     setReplayToIndex(replaySession.index + 1);
-    scheduleReplayPlayback();
-  }, REPLAY_STEP_DELAY);
+    replayTimer = window.setTimeout(() => {
+      scheduleReplayPlayback();
+    }, Math.max(0, REPLAY_STEP_DELAY - REPLAY_ARROW_LEAD));
+  }, REPLAY_ARROW_LEAD);
 }
 
 function pauseReplayPlayback() {

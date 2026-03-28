@@ -942,6 +942,11 @@ button:hover {
   width: 100%;
 }
 
+.side-actions.is-replay-mode .undo-toggle-button,
+.side-actions.is-replay-mode .undo-panel {
+  display: none;
+}
+
 .undo-card {
   padding: 14px;
   border-radius: 22px;
