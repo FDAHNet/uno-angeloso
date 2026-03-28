@@ -14,9 +14,9 @@
     <section class="hero">
       <div>
         <p class="eyebrow">Arcade Puzzle</p>
-        <h1>2048 Smooth</h1>
+        <h1>2048 <span class="title-accent">Angeloso</span></h1>
         <p class="lead">
-          Desliza con un movimiento sedoso, fusiones con ritmo y un estallido visual cuando llegues a 32 o m&aacute;s.
+          El juego clasico de 2048 con alguna sorpresa.
         </p>
       </div>
       <div class="hud">
@@ -48,11 +48,64 @@
     </section>
 
     <section class="board-panel">
-      <div class="board-frame">
-        <div id="board" class="board" aria-label="Tablero de 2048"></div>
-        <div id="fx-layer" class="fx-layer" aria-hidden="true"></div>
-      </div>
+      <div class="board-layout">
+        <div class="board-frame">
+          <div id="board" class="board" aria-label="Tablero de 2048"></div>
+          <div id="fx-layer" class="fx-layer" aria-hidden="true"></div>
+        </div>
+        <aside class="side-actions">
+          <div class="board-actions">
+            <button id="finish-button" type="button">Ok, GANE.<br>Finaliza el juego</button>
+          </div>
+        </aside>
+        </div>
       <div id="status" class="status" aria-live="polite"></div>
+      <section id="initials-entry" class="initials-entry hidden" aria-labelledby="initials-title">
+        <div class="initials-card">
+          <p class="initials-eyebrow">Nuevo record</p>
+          <h3 id="initials-title">Anota tus iniciales</h3>
+          <div id="initials-slots" class="initials-slots" aria-live="polite"></div>
+          <div class="letter-picker">
+            <button id="letter-up-button" type="button" class="letter-stepper">Subir letra</button>
+            <div id="current-letter" class="current-letter">A</div>
+            <button id="letter-down-button" type="button" class="letter-stepper">Bajar letra</button>
+          </div>
+          <div class="initials-actions">
+            <button id="select-letter-button" type="button">Marcar letra</button>
+            <button id="delete-letter-button" type="button" class="secondary-button">Borrar letra</button>
+          </div>
+          <p class="initials-help">Usa arriba y abajo para cambiar la letra. Marca la letra como en una recreativa clasica.</p>
+        </div>
+      </section>
+      <section class="records-panel" aria-labelledby="records-title">
+        <div class="records-header">
+          <h2 id="records-title">Records</h2>
+          <p>Locales en tu navegador y globales mediante GitHub Issues.</p>
+        </div>
+        <div class="records-table">
+          <h3 class="records-subtitle">Locales</h3>
+          <div class="records-row records-row-head">
+            <span>Jugador</span>
+            <span>Modo</span>
+            <span>Puntos</span>
+            <span>Fecha</span>
+          </div>
+          <div id="records-list" class="records-list"></div>
+        </div>
+        <div class="records-table global-records-table">
+          <div class="global-records-headline">
+            <h3 class="records-subtitle">Globales</h3>
+            <button id="submit-global-record-button" type="button" class="secondary-button hidden">Enviar record global</button>
+          </div>
+          <div class="records-row records-row-head">
+            <span>Jugador</span>
+            <span>Modo</span>
+            <span>Puntos</span>
+            <span>Fecha</span>
+          </div>
+          <div id="global-records-list" class="records-list"></div>
+        </div>
+      </section>
     </section>
   </main>
 

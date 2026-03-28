@@ -1,6 +1,11 @@
 const MOVE_DURATION = 210;
 const EFFECT_DURATION = 5000;
 const STORAGE_PREFIX = "smooth-2048-best-score";
+const RECORDS_PREFIX = "smooth-2048-records";
+const PLAYER_INITIALS_KEY = "smooth-2048-player-initials";
+const GITHUB_OWNER = "FDAHNet";
+const GITHUB_REPO = "2048";
+const GLOBAL_RECORD_LABEL = "record";
 
 const boardElement = document.getElementById("board");
 const fxLayer = document.getElementById("fx-layer");
@@ -8,7 +13,18 @@ const scoreElement = document.getElementById("score");
 const bestScoreElement = document.getElementById("best-score");
 const statusElement = document.getElementById("status");
 const restartButton = document.getElementById("restart-button");
+const finishButton = document.getElementById("finish-button");
 const boardSizeSelect = document.getElementById("board-size");
+const recordsListElement = document.getElementById("records-list");
+const globalRecordsListElement = document.getElementById("global-records-list");
+const submitGlobalRecordButton = document.getElementById("submit-global-record-button");
+const initialsEntryElement = document.getElementById("initials-entry");
+const initialsSlotsElement = document.getElementById("initials-slots");
+const currentLetterElement = document.getElementById("current-letter");
+const letterUpButton = document.getElementById("letter-up-button");
+const letterDownButton = document.getElementById("letter-down-button");
+const selectLetterButton = document.getElementById("select-letter-button");
+const deleteLetterButton = document.getElementById("delete-letter-button");
 
 let boardSize = Number(boardSizeSelect.value);
 let nextTileId = 1;
@@ -17,6 +33,16 @@ let gameState = createEmptyState();
 let isAnimating = false;
 let touchStart = null;
 let audioContext = null;
+let recordSaved = false;
+let pendingGlobalRecord = null;
+const ARCADE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const initialsEntryState = {
+  active: false,
+  letters: ["", "", ""],
+  slot: 0,
+  selectedIndex: 0,
+  pendingScore: 0,
+};
 
 function createEmptyState() {
   return {
@@ -32,6 +58,10 @@ function getBestScoreKey() {
   return `${STORAGE_PREFIX}-${boardSize}`;
 }
 
+function getRecordsKey() {
+  return `${RECORDS_PREFIX}-${boardSize}`;
+}
+
 function createTile(value, row, col) {
   return {
     id: nextTileId += 1,
@@ -45,6 +75,7 @@ function createTile(value, row, col) {
 }
 
 function buildGrid() {
+  syncBoardMetrics();
   boardElement.innerHTML = "";
   tileMap.clear();
   for (let row = 0; row < boardSize; row += 1) {
@@ -64,6 +95,13 @@ function getTileSize() {
   return (boardElement.clientWidth - (padding * 2) - (gap * (boardSize - 1))) / boardSize;
 }
 
+function syncBoardMetrics() {
+  const tileSize = getTileSize();
+  const radius = Math.max(10, tileSize * 0.18);
+  document.documentElement.style.setProperty("--tile-size", `${tileSize}px`);
+  document.documentElement.style.setProperty("--tile-radius", `${radius}px`);
+}
+
 function getOffset(row, col) {
   const style = getComputedStyle(document.documentElement);
   const gap = parseFloat(style.getPropertyValue("--gap"));
@@ -79,6 +117,19 @@ function positionTileElement(element, row, col) {
   const { x, y } = getOffset(row, col);
   element.style.left = `${x}px`;
   element.style.top = `${y}px`;
+}
+
+function applyTileTextSizing(element, value) {
+  const tileSize = getTileSize();
+  const digits = String(value).length;
+  let fontSize = tileSize * 0.42;
+
+  if (digits >= 3) fontSize = tileSize * 0.34;
+  if (digits >= 4) fontSize = tileSize * 0.27;
+  if (digits >= 5) fontSize = tileSize * 0.22;
+
+  element.style.fontSize = `${Math.max(12, fontSize)}px`;
+  element.style.letterSpacing = digits >= 4 ? "-0.05em" : "0";
 }
 
 function addRandomTile() {
@@ -105,17 +156,28 @@ function resetFlags() {
 }
 
 function startGame() {
+  if (initialsEntryState.active) {
+    setStatus("Guarda o borra tus iniciales antes de empezar otra partida.");
+    return;
+  }
+  maybePersistCurrentScore();
   boardSize = Number(boardSizeSelect.value);
   nextTileId = 0;
   tileMap.forEach((element) => element.remove());
   tileMap.clear();
   fxLayer.innerHTML = "";
   isAnimating = false;
+  recordSaved = false;
+  pendingGlobalRecord = null;
+  submitGlobalRecordButton.classList.add("hidden");
   gameState = createEmptyState();
   buildGrid();
   addRandomTile();
   addRandomTile();
   render();
+  renderRecords();
+  renderGlobalRecordsLoading();
+  fetchGlobalRecords();
   setStatus("");
 }
 
@@ -130,6 +192,7 @@ function updateScore(points) {
 }
 
 function render() {
+  syncBoardMetrics();
   scoreElement.textContent = gameState.score;
   bestScoreElement.textContent = gameState.bestScore;
 
@@ -154,6 +217,7 @@ function render() {
       if (tile.justMerged) element.classList.add("tile-merged");
       if (tile.effectUntil > now) element.classList.add("tile-epic");
       element.textContent = tile.value;
+      applyTileTextSizing(element, tile.value);
       positionTileElement(element, tile.row, tile.col);
     }
   }
@@ -164,6 +228,303 @@ function render() {
       tileMap.delete(id);
     }
   }
+}
+
+function loadRecords() {
+  const raw = localStorage.getItem(getRecordsKey());
+  if (!raw) return [];
+
+  try {
+    const records = JSON.parse(raw);
+    return Array.isArray(records) ? records : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecords(records) {
+  localStorage.setItem(getRecordsKey(), JSON.stringify(records));
+}
+
+function isRecordScore(score) {
+  if (score <= 0) return false;
+  const records = loadRecords();
+  if (records.length < 10) return true;
+  return records.some((record) => score > record.score);
+}
+
+function renderRecords() {
+  const records = loadRecords();
+  recordsListElement.innerHTML = "";
+
+  if (!records.length) {
+    const empty = document.createElement("div");
+    empty.className = "records-row records-row-empty";
+    empty.textContent = "Todavia no hay records guardados para este tablero.";
+    recordsListElement.appendChild(empty);
+    return;
+  }
+
+  records.forEach((record) => {
+    const row = document.createElement("div");
+    row.className = "records-row";
+
+    const initials = document.createElement("span");
+    initials.textContent = record.initials;
+
+    const mode = document.createElement("span");
+    mode.textContent = record.mode || `${boardSize}x${boardSize}`;
+
+    const score = document.createElement("span");
+    score.textContent = String(record.score);
+
+    const timestamp = document.createElement("span");
+    timestamp.textContent = record.displayDate;
+
+    row.append(initials, mode, score, timestamp);
+    recordsListElement.appendChild(row);
+  });
+}
+
+function renderGlobalRecordsLoading() {
+  globalRecordsListElement.innerHTML = "";
+  const row = document.createElement("div");
+  row.className = "records-row records-row-empty";
+  row.textContent = "Cargando records globales...";
+  globalRecordsListElement.appendChild(row);
+}
+
+function renderGlobalRecordsError() {
+  globalRecordsListElement.innerHTML = "";
+  const row = document.createElement("div");
+  row.className = "records-row records-row-empty";
+  row.textContent = "No se pudieron cargar los records globales de GitHub.";
+  globalRecordsListElement.appendChild(row);
+}
+
+function renderGlobalRecords(records) {
+  globalRecordsListElement.innerHTML = "";
+
+  if (!records.length) {
+    const row = document.createElement("div");
+    row.className = "records-row records-row-empty";
+    row.textContent = "Todavia no hay records globales enviados.";
+    globalRecordsListElement.appendChild(row);
+    return;
+  }
+
+  records.forEach((record) => {
+    const row = document.createElement("div");
+    row.className = "records-row";
+
+    const initials = document.createElement("span");
+    initials.textContent = record.initials;
+
+    const mode = document.createElement("span");
+    mode.textContent = record.mode;
+
+    const score = document.createElement("span");
+    score.textContent = String(record.score);
+
+    const timestamp = document.createElement("span");
+    timestamp.textContent = record.displayDate;
+
+    row.append(initials, mode, score, timestamp);
+    globalRecordsListElement.appendChild(row);
+  });
+}
+
+function parseGlobalRecord(issue) {
+  const body = issue.body || "";
+  const initials = body.match(/Initials:\s*([A-Z]{3})/i)?.[1]?.toUpperCase();
+  const mode = body.match(/Mode:\s*([0-9]+x[0-9]+)/i)?.[1];
+  const scoreText = body.match(/Score:\s*([0-9]+)/i)?.[1];
+  const score = Number(scoreText);
+
+  if (!initials || !mode || !Number.isFinite(score)) return null;
+
+  return {
+    initials,
+    mode,
+    score,
+    isoDate: issue.created_at,
+    displayDate: new Intl.DateTimeFormat("es-ES", {
+      dateStyle: "short",
+      timeStyle: "short",
+    }).format(new Date(issue.created_at)),
+  };
+}
+
+async function fetchGlobalRecords() {
+  try {
+    const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues?state=all&labels=${GLOBAL_RECORD_LABEL}&per_page=100`);
+    if (!response.ok) throw new Error(`GitHub ${response.status}`);
+    const issues = await response.json();
+    const records = issues
+      .filter((issue) => !issue.pull_request)
+      .map(parseGlobalRecord)
+      .filter(Boolean)
+      .sort((left, right) => {
+        if (right.score !== left.score) return right.score - left.score;
+        return left.isoDate.localeCompare(right.isoDate);
+      })
+      .slice(0, 10);
+    renderGlobalRecords(records);
+  } catch {
+    renderGlobalRecordsError();
+  }
+}
+
+function normalizeInitials(value) {
+  return (value || "")
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "")
+    .slice(0, 3);
+}
+
+function openInitialsEntry(score) {
+  const previous = normalizeInitials(localStorage.getItem(PLAYER_INITIALS_KEY) || "");
+  initialsEntryState.active = true;
+  initialsEntryState.letters = ["", "", ""];
+  initialsEntryState.slot = 0;
+  initialsEntryState.selectedIndex = ARCADE_ALPHABET.indexOf(previous[0] || "A");
+  initialsEntryState.pendingScore = score;
+  renderInitialsEntry();
+  initialsEntryElement.classList.remove("hidden");
+  setStatus("Nuevo record. Introduce tus iniciales.");
+}
+
+function closeInitialsEntry() {
+  initialsEntryState.active = false;
+  initialsEntryState.pendingScore = 0;
+  initialsEntryElement.classList.add("hidden");
+}
+
+function getCurrentSelectedLetter() {
+  return ARCADE_ALPHABET[initialsEntryState.selectedIndex] || "A";
+}
+
+function renderInitialsEntry() {
+  initialsSlotsElement.innerHTML = "";
+  for (let index = 0; index < 3; index += 1) {
+    const slot = document.createElement("div");
+    slot.className = "initials-slot";
+    if (index === initialsEntryState.slot) slot.classList.add("is-active");
+    slot.textContent = initialsEntryState.letters[index] || "_";
+    initialsSlotsElement.appendChild(slot);
+  }
+
+  currentLetterElement.textContent = getCurrentSelectedLetter();
+
+  const filledCount = initialsEntryState.letters.filter(Boolean).length;
+  selectLetterButton.textContent = filledCount === 2 ? "Guardar record" : "Marcar letra";
+  deleteLetterButton.disabled = filledCount === 0;
+}
+
+function shiftCurrentLetter(step) {
+  if (!initialsEntryState.active) return;
+  const total = ARCADE_ALPHABET.length;
+  initialsEntryState.selectedIndex = (initialsEntryState.selectedIndex + step + total) % total;
+  renderInitialsEntry();
+}
+
+function savePendingRecord() {
+  const initials = initialsEntryState.letters.join("");
+  const now = new Date();
+  const displayDate = new Intl.DateTimeFormat("es-ES", {
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(now);
+
+  const records = loadRecords();
+  records.push({
+    initials,
+    score: initialsEntryState.pendingScore,
+    mode: `${boardSize}x${boardSize}`,
+    isoDate: now.toISOString(),
+    displayDate,
+  });
+
+  records.sort((left, right) => {
+    if (right.score !== left.score) return right.score - left.score;
+    return left.isoDate.localeCompare(right.isoDate);
+  });
+
+  saveRecords(records.slice(0, 10));
+  localStorage.setItem(PLAYER_INITIALS_KEY, initials);
+  recordSaved = true;
+  pendingGlobalRecord = {
+    initials,
+    mode: `${boardSize}x${boardSize}`,
+    score: initialsEntryState.pendingScore,
+    isoDate: now.toISOString(),
+  };
+  submitGlobalRecordButton.classList.remove("hidden");
+  closeInitialsEntry();
+  renderRecords();
+  setStatus("Record guardado.");
+}
+
+function buildGlobalRecordIssueUrl() {
+  if (!pendingGlobalRecord) return "";
+  const title = `[Record] ${pendingGlobalRecord.initials} - ${pendingGlobalRecord.score} - ${pendingGlobalRecord.mode}`;
+  const body = [
+    "New global score submission",
+    "",
+    `Initials: ${pendingGlobalRecord.initials}`,
+    `Mode: ${pendingGlobalRecord.mode}`,
+    `Score: ${pendingGlobalRecord.score}`,
+    `Date: ${pendingGlobalRecord.isoDate}`,
+  ].join("\n");
+
+  return `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/issues/new?labels=${encodeURIComponent(GLOBAL_RECORD_LABEL)}&title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}`;
+}
+
+function submitGlobalRecord() {
+  if (!pendingGlobalRecord) return;
+  window.open(buildGlobalRecordIssueUrl(), "_blank", "noopener");
+}
+
+function commitCurrentLetter() {
+  if (!initialsEntryState.active) return;
+  initialsEntryState.letters[initialsEntryState.slot] = getCurrentSelectedLetter();
+  if (initialsEntryState.slot === 2) {
+    savePendingRecord();
+    return;
+  }
+
+  initialsEntryState.slot += 1;
+  initialsEntryState.selectedIndex = 0;
+  renderInitialsEntry();
+}
+
+function deleteLastLetter() {
+  if (!initialsEntryState.active) return;
+
+  if (!initialsEntryState.letters[initialsEntryState.slot] && initialsEntryState.slot > 0) {
+    initialsEntryState.slot -= 1;
+  }
+
+  initialsEntryState.letters[initialsEntryState.slot] = "";
+  initialsEntryState.selectedIndex = 0;
+  renderInitialsEntry();
+}
+
+function maybePersistCurrentScore() {
+  if (recordSaved || gameState.score <= 0) return;
+  if (!isRecordScore(gameState.score)) {
+    recordSaved = true;
+    return;
+  }
+
+  openInitialsEntry(gameState.score);
+}
+
+function finishGame() {
+  if (gameState.over || isAnimating || initialsEntryState.active) return;
+  gameState.over = true;
+  maybePersistCurrentScore();
+  if (!initialsEntryState.active) setStatus("Partida finalizada.");
 }
 
 function withinBounds(row, col) {
@@ -202,7 +563,7 @@ function scheduleEpicEffect(tile) {
 }
 
 function move(direction) {
-  if (gameState.over || isAnimating) return;
+  if (gameState.over || isAnimating || initialsEntryState.active) return;
 
   resetFlags();
   isAnimating = true;
@@ -305,9 +666,10 @@ function move(direction) {
       setStatus("Llegaste a 2048. Puedes seguir jugando.");
     } else if (!canMove()) {
       gameState.over = true;
+      maybePersistCurrentScore();
       setStatus("No quedan movimientos. Pulsa Nueva partida.");
     } else {
-      setStatus(epicBursts.length ? "Efecto especial activo durante 5 segundos." : "");
+      setStatus("");
     }
     isAnimating = false;
   }, MOVE_DURATION);
@@ -363,6 +725,7 @@ function createMergeGhost({ fromRow, fromCol, toRow, toCol, value }) {
   const ghost = document.createElement("div");
   ghost.className = `tile tile-value-${Math.min(value, 2048)} ${value > 2048 ? "tile-value-super" : ""}`.trim();
   ghost.textContent = value;
+  applyTileTextSizing(ghost, value);
   positionTileElement(ghost, fromRow, fromCol);
   boardElement.appendChild(ghost);
 
@@ -439,6 +802,28 @@ function playFanfare128() {
 
 function handleKeydown(event) {
   ensureAudio();
+  if (initialsEntryState.active) {
+    if (event.key === "ArrowUp" || event.key === "w" || event.key === "W") {
+      event.preventDefault();
+      shiftCurrentLetter(-1);
+      return;
+    }
+    if (event.key === "ArrowDown" || event.key === "s" || event.key === "S") {
+      event.preventDefault();
+      shiftCurrentLetter(1);
+      return;
+    }
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      commitCurrentLetter();
+      return;
+    }
+    if (event.key === "Backspace" || event.key === "Delete") {
+      event.preventDefault();
+      deleteLastLetter();
+      return;
+    }
+  }
   const keyMap = {
     ArrowUp: "up",
     ArrowDown: "down",
@@ -490,6 +875,12 @@ boardSizeSelect.addEventListener("change", () => {
   ensureAudio();
   startGame();
 });
+finishButton.addEventListener("click", finishGame);
+letterUpButton.addEventListener("click", () => shiftCurrentLetter(-1));
+letterDownButton.addEventListener("click", () => shiftCurrentLetter(1));
+selectLetterButton.addEventListener("click", commitCurrentLetter);
+deleteLetterButton.addEventListener("click", deleteLastLetter);
+submitGlobalRecordButton.addEventListener("click", submitGlobalRecord);
 window.addEventListener("keydown", handleKeydown);
 boardElement.addEventListener("touchstart", handleTouchStart, { passive: true });
 boardElement.addEventListener("touchend", handleTouchEnd, { passive: true });
