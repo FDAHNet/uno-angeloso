@@ -1719,4 +1719,5 @@ buildGrid();
 applyTheme(theme);
 updateAudioToggleButton();
 setRecordsPanelOpen(false);
+closeInitialsEntry();
 startAttractMode();
