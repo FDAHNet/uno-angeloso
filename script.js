@@ -576,8 +576,6 @@ function updateReplayArrow(direction = "") {
   if (!hasDirection || !replayMode) {
     replayArrowRotation = 0;
     replayArrowOverlayElement.style.setProperty("--replay-arrow-rotation", "0deg");
-    replayArrowOverlayElement.style.setProperty("--replay-arrow-from", "0deg");
-    replayArrowOverlayElement.classList.remove("is-turning");
     replayArrowOverlayElement.dataset.direction = "";
     replayArrowOverlayElement.classList.add("hidden");
     replayArrowOverlayElement.classList.remove("is-visible");
@@ -586,12 +584,10 @@ function updateReplayArrow(direction = "") {
 
   const targetRotation = getReplayArrowRotation(direction);
   replayArrowOverlayElement.dataset.direction = direction;
-  replayArrowOverlayElement.style.setProperty("--replay-arrow-from", `${replayArrowRotation}deg`);
-  replayArrowOverlayElement.style.setProperty("--replay-arrow-rotation", `${targetRotation}deg`);
-  replayArrowOverlayElement.classList.remove("is-turning");
-  void replayArrowOverlayElement.offsetWidth;
-  replayArrowOverlayElement.classList.add("is-turning");
-  replayArrowRotation = targetRotation;
+  const normalizedCurrent = ((replayArrowRotation % 360) + 360) % 360;
+  const delta = ((targetRotation - normalizedCurrent + 540) % 360) - 180;
+  replayArrowRotation += delta;
+  replayArrowOverlayElement.style.setProperty("--replay-arrow-rotation", `${replayArrowRotation}deg`);
   replayArrowOverlayElement.classList.toggle("hidden", !hasDirection || !replayMode);
   replayArrowOverlayElement.classList.toggle("is-visible", Boolean(hasDirection && replayMode));
 }
