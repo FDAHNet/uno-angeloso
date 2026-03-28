@@ -31,6 +31,7 @@ export default {
     }
 
     const title = `[Record] ${payload.initials} - ${payload.score} - ${payload.mode}`;
+    const replayJson = JSON.stringify(payload.replay);
     const body = [
       "New global score submission",
       "",
@@ -41,9 +42,13 @@ export default {
       "",
       "Replay JSON:",
       "```json",
-      JSON.stringify(payload.replay, null, 2),
+      replayJson,
       "```",
     ].join("\n");
+
+    if (body.length > 62000) {
+      return json({ error: "Replay demasiado larga para GitHub Issues" }, 413, corsHeaders);
+    }
 
     const githubResponse = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues`, {
       method: "POST",
@@ -89,4 +94,3 @@ function json(data, status, headers) {
     },
   });
 }
-

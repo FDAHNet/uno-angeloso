@@ -1334,7 +1334,7 @@ function savePendingRecord() {
 function buildGlobalRecordIssueUrl() {
   if (!pendingGlobalRecord) return "";
   const title = `[Record] ${pendingGlobalRecord.initials} - ${pendingGlobalRecord.score} - ${pendingGlobalRecord.mode}`;
-  const replayJson = pendingGlobalRecord.replay ? JSON.stringify(pendingGlobalRecord.replay, null, 2) : "{}";
+  const replayJson = pendingGlobalRecord.replay ? JSON.stringify(pendingGlobalRecord.replay) : "{}";
   const body = [
     "New global score submission",
     "",
@@ -1371,7 +1371,10 @@ function submitGlobalRecord() {
     .then(async (response) => {
       if (!response.ok) {
         const errorPayload = await response.json().catch(() => ({}));
-        throw new Error(errorPayload.error || "No se pudo enviar el record");
+        const details = typeof errorPayload.details === "string"
+          ? errorPayload.details.replace(/\s+/g, " ").slice(0, 180)
+          : "";
+        throw new Error([errorPayload.error || "No se pudo enviar el record", details].filter(Boolean).join(": "));
       }
       return response.json();
     })
