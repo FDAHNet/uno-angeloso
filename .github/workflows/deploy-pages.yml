@@ -25,6 +25,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Stamp build version
+        shell: bash
+        run: |
+          export TZ=Europe/Madrid
+          BUILD_STAMP="$(date +'%Y-%m-%d_%H-%M')"
+          sed -i "s/__BUILD_STAMP__/${BUILD_STAMP}/g" index.html
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
@@ -36,3 +43,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
