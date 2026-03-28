@@ -625,6 +625,22 @@ button:hover {
   box-shadow: 0 8px 18px rgba(255, 143, 97, 0.22);
 }
 
+.audio-toggle-button {
+  min-width: 150px;
+  padding: 9px 14px;
+  text-align: center;
+  align-self: flex-end;
+  font-size: 0.82rem;
+  line-height: 1.1;
+}
+
+.audio-toggle-button.is-on {
+  color: #1a1123;
+  background: linear-gradient(135deg, #ffd166, #ff8c61);
+  border-color: transparent;
+  box-shadow: 0 8px 18px rgba(255, 143, 97, 0.22);
+}
+
 .replay-indicator {
   margin-top: auto;
   width: 100%;

@@ -3,6 +3,7 @@ const EFFECT_DURATION = 5000;
 const STORAGE_PREFIX = "smooth-2048-best-score";
 const RECORDS_PREFIX = "smooth-2048-records";
 const PLAYER_INITIALS_KEY = "smooth-2048-player-initials";
+const AUDIO_ENABLED_KEY = "smooth-2048-audio-enabled";
 const GITHUB_OWNER = "FDAHNet";
 const GITHUB_REPO = "2048";
 const GLOBAL_RECORD_LABEL = "record";
@@ -15,6 +16,7 @@ const bestScoreElement = document.getElementById("best-score");
 const statusElement = document.getElementById("status");
 const restartButton = document.getElementById("restart-button");
 const finishButton = document.getElementById("finish-button");
+const audioToggleButton = document.getElementById("audio-toggle-button");
 const replayIndicatorElement = document.getElementById("replay-indicator");
 const boardSizeSelect = document.getElementById("board-size");
 const recordsListElement = document.getElementById("records-list");
@@ -51,6 +53,7 @@ let touchStart = null;
 let audioContext = null;
 let audioMasterGain = null;
 let audioUnlocked = false;
+let audioEnabled = localStorage.getItem(AUDIO_ENABLED_KEY) === "true";
 let recordSaved = false;
 let pendingGlobalRecord = null;
 let journalEntries = [];
@@ -81,6 +84,12 @@ function createEmptyState() {
     won: false,
     cells: Array.from({ length: boardSize }, () => Array(boardSize).fill(null)),
   };
+}
+
+function updateAudioToggleButton() {
+  audioToggleButton.textContent = audioEnabled ? "🔊 ON" : "🔈 OFF";
+  audioToggleButton.classList.toggle("is-on", audioEnabled);
+  audioToggleButton.setAttribute("aria-pressed", String(audioEnabled));
 }
 
 function getBestScoreKey() {
@@ -1270,6 +1279,7 @@ function ensureAudio() {
 }
 
 async function unlockAudio() {
+  if (!audioEnabled) return null;
   const context = ensureAudio();
   if (!context) return null;
 
@@ -1315,6 +1325,7 @@ function playToneNow(context, { frequency, duration, type = "sine", volume = 0.0
 }
 
 function playTone(options) {
+  if (!audioEnabled) return;
   const context = ensureAudio();
   if (!context || !audioMasterGain) return;
   if (context.state === "running") {
@@ -1359,9 +1370,28 @@ function playFanfare128() {
 }
 
 function queueMove(direction) {
-  unlockAudio()
-    .catch(() => null)
-    .finally(() => move(direction));
+  if (!audioEnabled) {
+    move(direction);
+    return;
+  }
+  unlockAudio().catch(() => null).finally(() => move(direction));
+}
+
+function toggleAudioEnabled() {
+  audioEnabled = !audioEnabled;
+  localStorage.setItem(AUDIO_ENABLED_KEY, String(audioEnabled));
+  updateAudioToggleButton();
+
+  if (audioEnabled) {
+    void unlockAudio();
+    setStatus("Sonido activado.");
+  } else {
+    if (audioContext?.state === "running") {
+      audioContext.suspend().catch(() => {});
+    }
+    audioUnlocked = false;
+    setStatus("Sonido desactivado.");
+  }
 }
 
 function handleKeydown(event) {
@@ -1461,27 +1491,30 @@ function handleTouchEnd(event) {
   }
 }
 
-window.addEventListener("pointerdown", () => { void unlockAudio(); });
+window.addEventListener("pointerdown", () => {
+  if (audioEnabled) void unlockAudio();
+});
 window.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") {
+  if (audioEnabled && document.visibilityState === "visible") {
     void unlockAudio();
   }
 });
 restartButton.addEventListener("click", () => {
-  void unlockAudio();
+  if (audioEnabled) void unlockAudio();
   startGame();
 });
-boardSizeSelect.addEventListener("click", () => { void unlockAudio(); });
+boardSizeSelect.addEventListener("click", () => { if (audioEnabled) void unlockAudio(); });
 boardSizeSelect.addEventListener("change", () => {
-  void unlockAudio();
+  if (audioEnabled) void unlockAudio();
   startGame();
 });
 finishButton.addEventListener("click", finishGame);
-letterUpButton.addEventListener("pointerdown", () => { void unlockAudio(); });
-letterDownButton.addEventListener("pointerdown", () => { void unlockAudio(); });
-selectLetterButton.addEventListener("pointerdown", () => { void unlockAudio(); });
-deleteLetterButton.addEventListener("pointerdown", () => { void unlockAudio(); });
-submitGlobalRecordButton.addEventListener("pointerdown", () => { void unlockAudio(); });
+audioToggleButton.addEventListener("click", toggleAudioEnabled);
+letterUpButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
+letterDownButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
+selectLetterButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
+deleteLetterButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
+submitGlobalRecordButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
 letterUpButton.addEventListener("click", () => shiftCurrentLetter(-1));
 letterDownButton.addEventListener("click", () => shiftCurrentLetter(1));
 selectLetterButton.addEventListener("click", commitCurrentLetter);
@@ -1513,5 +1546,6 @@ boardElement.addEventListener("touchend", handleTouchEnd, { passive: true });
 window.addEventListener("resize", render);
 
 buildGrid();
+updateAudioToggleButton();
 setRecordsPanelOpen(false);
 startGame();
