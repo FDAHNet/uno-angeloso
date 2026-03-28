@@ -1358,6 +1358,12 @@ function playFanfare128() {
   });
 }
 
+function queueMove(direction) {
+  unlockAudio()
+    .catch(() => null)
+    .finally(() => move(direction));
+}
+
 function handleKeydown(event) {
   void unlockAudio();
   if (replayMode && replaySession) {
@@ -1431,7 +1437,7 @@ function handleKeydown(event) {
   const direction = keyMap[event.key];
   if (!direction) return;
   event.preventDefault();
-  move(direction);
+  queueMove(direction);
 }
 
 function handleTouchStart(event) {
@@ -1449,9 +1455,9 @@ function handleTouchEnd(event) {
 
   if (Math.max(Math.abs(dx), Math.abs(dy)) < 28) return;
   if (Math.abs(dx) > Math.abs(dy)) {
-    move(dx > 0 ? "right" : "left");
+    queueMove(dx > 0 ? "right" : "left");
   } else {
-    move(dy > 0 ? "down" : "up");
+    queueMove(dy > 0 ? "down" : "up");
   }
 }
 
