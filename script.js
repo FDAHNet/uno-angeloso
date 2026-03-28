@@ -13,6 +13,7 @@ const GITHUB_OWNER = "FDAHNet";
 const GITHUB_REPO = "2048";
 const GLOBAL_RECORD_LABEL = "record";
 const WORKER_API_URL = "https://angeloso-2048-records.mcdrer.workers.dev";
+const HOLE_SEQUENCE = ["h", "o", "l", "e"];
 
 const boardElement = document.getElementById("board");
 const fxLayer = document.getElementById("fx-layer");
@@ -87,6 +88,9 @@ let replayResumeState = null;
 let replaySession = null;
 let demoMode = false;
 let demoTimer = null;
+let holeMode = false;
+let holeTimer = null;
+let holeSequenceProgress = 0;
 let attractDismissed = false;
 let theme = localStorage.getItem(THEME_KEY) || "crt";
 let gameSessionId = 0;
@@ -206,6 +210,19 @@ function stopDemoMode() {
     demoTimer = null;
   }
   if (statusElement.textContent === "MODO DEMO") {
+    setStatus("");
+  }
+}
+
+function stopHoleMode(options = {}) {
+  const { keepStatus = false } = options;
+  holeMode = false;
+  holeSequenceProgress = 0;
+  if (holeTimer) {
+    window.clearTimeout(holeTimer);
+    holeTimer = null;
+  }
+  if (!keepStatus && statusElement.textContent === "MODO H.O.L.E. Pulsa Espacio para parar.") {
     setStatus("");
   }
 }
@@ -380,6 +397,7 @@ function startGame(options = {}) {
   gameSessionId += 1;
   discardReplayState();
   stopDemoMode();
+  stopHoleMode({ keepStatus: true });
   setGameOverOverlay(false);
   demoMode = demo;
   boardSize = Number(boardSizeSelect.value);
@@ -436,6 +454,195 @@ function setRecordsPanelOpen(nextOpen) {
 
 function setStatus(message) {
   statusElement.textContent = message;
+}
+
+function boardValuesFromState(state = gameState) {
+  return state.cells.map((row) => row.map((tile) => tile?.value || 0));
+}
+
+function cloneBoardValues(values) {
+  return values.map((row) => row.slice());
+}
+
+function simulateLine(line) {
+  const compact = line.filter((value) => value > 0);
+  const merged = [];
+  let gainedScore = 0;
+  let highestMerge = 0;
+
+  for (let index = 0; index < compact.length; index += 1) {
+    const value = compact[index];
+    if (compact[index + 1] === value) {
+      const nextValue = value * 2;
+      merged.push(nextValue);
+      gainedScore += nextValue;
+      highestMerge = Math.max(highestMerge, nextValue);
+      index += 1;
+    } else {
+      merged.push(value);
+    }
+  }
+
+  while (merged.length < boardSize) merged.push(0);
+  return { line: merged, gainedScore, highestMerge };
+}
+
+function getBoardLine(values, direction, index) {
+  if (direction === "left" || direction === "right") {
+    return values[index].slice();
+  }
+  return Array.from({ length: boardSize }, (_, offset) => values[offset][index]);
+}
+
+function setBoardLine(values, direction, index, line) {
+  if (direction === "left" || direction === "right") {
+    values[index] = line.slice();
+    return;
+  }
+  for (let offset = 0; offset < boardSize; offset += 1) {
+    values[offset][index] = line[offset];
+  }
+}
+
+function simulateDirectionOnValues(sourceValues, direction) {
+  const nextValues = cloneBoardValues(sourceValues);
+  let moved = false;
+  let gainedScore = 0;
+  let highestMerge = 0;
+
+  for (let index = 0; index < boardSize; index += 1) {
+    const original = getBoardLine(sourceValues, direction, index);
+    const normalized = direction === "right" || direction === "down" ? original.slice().reverse() : original.slice();
+    const result = simulateLine(normalized);
+    const restored = direction === "right" || direction === "down" ? result.line.slice().reverse() : result.line.slice();
+
+    if (!moved && restored.some((value, valueIndex) => value !== original[valueIndex])) {
+      moved = true;
+    }
+
+    gainedScore += result.gainedScore;
+    highestMerge = Math.max(highestMerge, result.highestMerge);
+    setBoardLine(nextValues, direction, index, restored);
+  }
+
+  return {
+    moved,
+    values: nextValues,
+    gainedScore,
+    highestMerge,
+  };
+}
+
+function countEmptyCells(values) {
+  return values.reduce((total, row) => total + row.filter((value) => value === 0).length, 0);
+}
+
+function countAvailableMovesForValues(values) {
+  return ["up", "right", "down", "left"]
+    .filter((direction) => simulateDirectionOnValues(values, direction).moved)
+    .length;
+}
+
+function buildSnakeWeightMaps() {
+  const base = Array.from({ length: boardSize }, () => Array(boardSize).fill(0));
+  let rank = boardSize * boardSize;
+
+  for (let row = 0; row < boardSize; row += 1) {
+    const cols = Array.from({ length: boardSize }, (_, col) => col);
+    if (row % 2 === 1) cols.reverse();
+    cols.forEach((col) => {
+      base[row][col] = rank;
+      rank -= 1;
+    });
+  }
+
+  const rotate = (matrix) => matrix[0].map((_, col) => matrix.map((row) => row[col]).reverse());
+  const maps = [base];
+  while (maps.length < 4) maps.push(rotate(maps[maps.length - 1]));
+  return maps;
+}
+
+function evaluateBoardValues(values, gainedScore = 0) {
+  const emptyCells = countEmptyCells(values);
+  const mobility = countAvailableMovesForValues(values);
+  if (mobility === 0) return Number.NEGATIVE_INFINITY;
+
+  const weightMaps = buildSnakeWeightMaps();
+  const weightedSnake = Math.max(
+    ...weightMaps.map((weightMap) => {
+      let total = 0;
+      for (let row = 0; row < boardSize; row += 1) {
+        for (let col = 0; col < boardSize; col += 1) {
+          const value = values[row][col];
+          if (!value) continue;
+          total += Math.log2(value) * weightMap[row][col];
+        }
+      }
+      return total;
+    })
+  );
+
+  const maxTile = Math.max(...values.flat());
+  const maxInCorner = [values[0][0], values[0][boardSize - 1], values[boardSize - 1][0], values[boardSize - 1][boardSize - 1]]
+    .includes(maxTile);
+
+  return (
+    (emptyCells * 10000)
+    + (mobility * 2200)
+    + (gainedScore * 18)
+    + weightedSnake
+    + (maxInCorner ? maxTile * 24 : 0)
+  );
+}
+
+function getHoleBestMove() {
+  const currentValues = boardValuesFromState();
+  let bestDirection = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  ["up", "left", "right", "down"].forEach((direction) => {
+    const simulation = simulateDirectionOnValues(currentValues, direction);
+    if (!simulation.moved) return;
+    const score = evaluateBoardValues(simulation.values, simulation.gainedScore);
+    if (score > bestScore) {
+      bestScore = score;
+      bestDirection = direction;
+    }
+  });
+
+  return bestDirection;
+}
+
+function scheduleHoleMove() {
+  if (!holeMode) return;
+  if (holeTimer) window.clearTimeout(holeTimer);
+  const holeSessionId = gameSessionId;
+  holeTimer = window.setTimeout(() => {
+    if (holeSessionId !== gameSessionId) return;
+    if (!holeMode || isAnimating || replayMode || initialsEntryState.active || demoMode) return;
+    if (gameState.over) {
+      stopHoleMode({ keepStatus: true });
+      return;
+    }
+    const direction = getHoleBestMove();
+    if (!direction) {
+      stopHoleMode({ keepStatus: true });
+      return;
+    }
+    move(direction);
+  }, 70);
+}
+
+function startHoleMode() {
+  if (!attractDismissed) {
+    startActualGame();
+  }
+  if (demoMode || replayMode || initialsEntryState.active || gameState.over) return;
+  stopDemoMode();
+  holeMode = true;
+  holeSequenceProgress = 0;
+  setStatus("MODO H.O.L.E. Pulsa Espacio para parar.");
+  scheduleHoleMove();
 }
 
 function updateScore(points) {
@@ -771,6 +978,7 @@ function restoreHistoryEntry(entryId) {
 
   const entry = moveHistory[targetIndex];
   stopDemoMode();
+  stopHoleMode({ keepStatus: true });
   discardReplayState();
   fxLayer.innerHTML = "";
   isAnimating = false;
@@ -1464,6 +1672,7 @@ function toggleReplayPlayback() {
 
 function startReplayOnBoard(replay) {
   stopReplayMode();
+  stopHoleMode({ keepStatus: true });
   setGameOverOverlay(false);
   replayMode = true;
   renderGameTimer();
@@ -1519,6 +1728,7 @@ function scheduleDemoMove() {
 }
 
 function startAttractMode() {
+  stopHoleMode({ keepStatus: true });
   attractDismissed = false;
   attractOverlayElement.classList.remove("hidden");
   startGame({ demo: true });
@@ -1572,6 +1782,7 @@ function maybePersistCurrentScore() {
 function finishGame() {
   if (demoMode) return;
   if (gameState.over || isAnimating || initialsEntryState.active) return;
+  stopHoleMode({ keepStatus: true });
   gameState.over = true;
   renderGameTimer();
   setGameOverOverlay(true, "BY USER");
@@ -1724,6 +1935,7 @@ function move(direction) {
     if (!demoMode) playBlockedSound();
     isAnimating = false;
     if (demoMode) scheduleDemoMove();
+    if (holeMode) scheduleHoleMove();
     return;
   }
 
@@ -1761,6 +1973,7 @@ function move(direction) {
       setStatus(demoMode ? "MODO DEMO" : "Llegaste a 2048. Puedes seguir jugando.");
     } else if (!canMove()) {
       gameState.over = true;
+      stopHoleMode({ keepStatus: true });
       renderGameTimer();
       if (!demoMode) {
         setGameOverOverlay(true, "BY MACHINE");
@@ -1772,10 +1985,11 @@ function move(direction) {
         return;
       }
     } else {
-      setStatus(demoMode ? "MODO DEMO" : "");
+      setStatus(demoMode ? "MODO DEMO" : holeMode ? "MODO H.O.L.E. Pulsa Espacio para parar." : "");
     }
     isAnimating = false;
     if (demoMode) scheduleDemoMove();
+    if (holeMode) scheduleHoleMove();
   }, MOVE_DURATION);
 }
 
@@ -2014,6 +2228,12 @@ function toggleAudioEnabled() {
 }
 
 function handleKeydown(event) {
+  if (holeMode && event.key === " ") {
+    event.preventDefault();
+    stopHoleMode();
+    setStatus("MODO H.O.L.E. detenido.");
+    return;
+  }
   if (!attractDismissed && (event.key === " " || event.key === "Enter" || event.key === "Escape")) {
     event.preventDefault();
     startActualGame();
@@ -2089,7 +2309,26 @@ function handleKeydown(event) {
     D: "right",
   };
   const direction = keyMap[event.key];
+  if (!direction && !event.repeat && !replayMode && !initialsEntryState.active) {
+    const nextExpected = HOLE_SEQUENCE[holeSequenceProgress];
+    const pressed = event.key?.toLowerCase?.() || "";
+    if (pressed === nextExpected) {
+      holeSequenceProgress += 1;
+      if (holeSequenceProgress === HOLE_SEQUENCE.length) {
+        event.preventDefault();
+        startHoleMode();
+      }
+    } else if (pressed === HOLE_SEQUENCE[0]) {
+      holeSequenceProgress = 1;
+    } else {
+      holeSequenceProgress = 0;
+    }
+  }
   if (!direction) return;
+  if (holeMode) {
+    event.preventDefault();
+    return;
+  }
   if (!attractDismissed) {
     event.preventDefault();
     startActualGame();
@@ -2108,6 +2347,10 @@ function handleTouchStart(event) {
 
 function handleTouchEnd(event) {
   if (!touchStart) return;
+  if (holeMode) {
+    touchStart = null;
+    return;
+  }
   const touch = event.changedTouches[0];
   const dx = touch.clientX - touchStart.x;
   const dy = touch.clientY - touchStart.y;
