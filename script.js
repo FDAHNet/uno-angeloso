@@ -1052,6 +1052,7 @@ function scheduleEpicEffect(tile) {
 }
 
 function move(direction) {
+  void unlockAudio();
   if (gameState.over || isAnimating || initialsEntryState.active || replayMode) return;
 
   resetFlags();
@@ -1277,7 +1278,11 @@ async function unlockAudio() {
 
 function playTone({ frequency, duration, type = "sine", volume = 0.05, when = 0, slideTo = null }) {
   const context = ensureAudio();
-  if (!context || context.state !== "running" || !audioMasterGain) return;
+  if (!context || !audioMasterGain) return;
+  if (context.state !== "running") {
+    context.resume().catch(() => {});
+    if (context.state !== "running") return;
+  }
 
   const startAt = context.currentTime + when;
   const oscillator = context.createOscillator();
@@ -1425,6 +1430,11 @@ function handleTouchEnd(event) {
 }
 
 window.addEventListener("pointerdown", () => { void unlockAudio(); });
+window.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    void unlockAudio();
+  }
+});
 restartButton.addEventListener("click", () => {
   void unlockAudio();
   startGame();
