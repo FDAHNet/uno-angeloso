@@ -21,7 +21,6 @@ const gameOverOverlayElement = document.getElementById("game-over-overlay");
 const audioToggleButton = document.getElementById("audio-toggle-button");
 const replayIndicatorElement = document.getElementById("replay-indicator");
 const boardSizeSelect = document.getElementById("board-size");
-const submitGlobalRecordButton = document.getElementById("submit-global-record-button");
 const recordsPanelElement = document.getElementById("records-panel");
 const toggleRecordsButton = document.getElementById("toggle-records-button");
 const globalRecordsGroupsElement = document.getElementById("global-records-groups");
@@ -259,7 +258,6 @@ function startGame(options = {}) {
   pendingGlobalRecord = null;
   journalEntries = [];
   currentReplay = null;
-  submitGlobalRecordButton.classList.add("hidden");
   gameState = createEmptyState();
   buildGrid();
   const startSpawnA = addRandomTile();
@@ -387,44 +385,7 @@ function isRecordScore(score) {
 }
 
 function renderRecords() {
-  if (!document.getElementById("records-list")) return;
-  const recordsListElement = document.getElementById("records-list");
-  const records = loadRecords();
-  recordsListElement.innerHTML = "";
-
-  if (!records.length) {
-    const empty = document.createElement("div");
-    empty.className = "records-row records-row-empty";
-    empty.textContent = "Todavia no hay records guardados para este tablero.";
-    recordsListElement.appendChild(empty);
-    return;
-  }
-
-  records.forEach((record) => {
-    const row = document.createElement("div");
-    row.className = "records-row";
-
-    const initials = document.createElement("span");
-    initials.textContent = record.initials;
-
-    const mode = document.createElement("span");
-    mode.textContent = record.mode || `${boardSize}x${boardSize}`;
-
-    const score = document.createElement("span");
-    score.textContent = String(record.score);
-
-    const timestamp = document.createElement("span");
-    timestamp.textContent = record.displayDate;
-
-    const action = document.createElement("button");
-    action.type = "button";
-    action.className = "secondary-button record-action-button";
-    action.textContent = "Ver partida";
-    action.addEventListener("click", () => openReplayViewer(resolveReplayForRecord(record), record));
-
-    row.append(initials, mode, score, timestamp, action);
-    recordsListElement.appendChild(row);
-  });
+  return;
 }
 
 function renderJournal() {
@@ -752,10 +713,16 @@ function savePendingRecord() {
     isoDate: now.toISOString(),
     replay: replayPayload,
   };
-  submitGlobalRecordButton.classList.remove("hidden");
+  const currentModeRecords = globalRecordsCache[pendingGlobalRecord.mode] || [];
+  const currentTopScore = currentModeRecords.length ? Math.max(...currentModeRecords.map((record) => record.score)) : 0;
   closeInitialsEntry();
   renderRecords();
   setStatus("Record guardado.");
+  playApplause();
+  if (pendingGlobalRecord.score > currentTopScore) {
+    playGlobalRecordFanfare();
+  }
+  submitGlobalRecord();
 }
 
 function buildGlobalRecordIssueUrl() {
@@ -786,7 +753,6 @@ function submitGlobalRecord() {
     return;
   }
 
-  submitGlobalRecordButton.disabled = true;
   setStatus("Enviando record global...");
 
   fetch(WORKER_API_URL, {
@@ -804,15 +770,12 @@ function submitGlobalRecord() {
       return response.json();
     })
     .then(() => {
-      submitGlobalRecordButton.classList.add("hidden");
+      pendingGlobalRecord = null;
       setStatus("Record global enviado correctamente.");
       fetchGlobalRecords();
     })
     .catch((error) => {
       setStatus(`Error al enviar record: ${error.message}`);
-    })
-    .finally(() => {
-      submitGlobalRecordButton.disabled = false;
     });
 }
 
@@ -1526,6 +1489,34 @@ function playFanfare128() {
   });
 }
 
+function playApplause() {
+  for (let index = 0; index < 18; index += 1) {
+    const burstAt = index * 0.055;
+    const base = 180 + Math.random() * 420;
+    playTone({
+      frequency: base,
+      duration: 0.045 + Math.random() * 0.03,
+      type: index % 2 === 0 ? "square" : "triangle",
+      volume: 0.028,
+      when: burstAt,
+      slideTo: base * (0.78 + Math.random() * 0.18),
+    });
+  }
+}
+
+function playGlobalRecordFanfare() {
+  const notes = [659.25, 783.99, 987.77, 1318.51, 1567.98];
+  notes.forEach((note, index) => {
+    playTone({
+      frequency: note,
+      duration: 0.22,
+      type: index < 3 ? "triangle" : "square",
+      volume: 0.09,
+      when: index * 0.12,
+    });
+  });
+}
+
 function queueMove(direction) {
   if (!audioEnabled) {
     move(direction);
@@ -1688,13 +1679,11 @@ letterUpButton.addEventListener("pointerdown", () => { if (audioEnabled) void un
 letterDownButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
 selectLetterButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
 deleteLetterButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
-submitGlobalRecordButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
 letterUpButton.addEventListener("click", () => shiftCurrentLetter(-1));
 letterDownButton.addEventListener("click", () => shiftCurrentLetter(1));
 selectLetterButton.addEventListener("click", commitCurrentLetter);
 deleteLetterButton.addEventListener("click", deleteLastLetter);
 closeInitialsButton.addEventListener("click", () => closeInitialsEntry({ discard: true }));
-submitGlobalRecordButton.addEventListener("click", submitGlobalRecord);
 closeReplayButton.addEventListener("click", closeReplayViewer);
 replayFirstButton.addEventListener("click", () => {
   pauseReplayPlayback();
