@@ -74,6 +74,7 @@ let demoMode = false;
 let demoTimer = null;
 let attractDismissed = false;
 let theme = localStorage.getItem(THEME_KEY) || "crt";
+let gameSessionId = 0;
 const ARCADE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const GLOBAL_MODES = ["4x4", "5x5", "6x6", "8x8"];
 const globalRecordsElements = Object.fromEntries(
@@ -101,6 +102,17 @@ function updateAudioToggleButton() {
   audioToggleButton.textContent = audioEnabled ? "🔊 SONIDO ON" : "🔈 SONIDO OFF";
   audioToggleButton.classList.toggle("is-on", audioEnabled);
   audioToggleButton.setAttribute("aria-pressed", String(audioEnabled));
+}
+
+function stopDemoMode() {
+  demoMode = false;
+  if (demoTimer) {
+    window.clearTimeout(demoTimer);
+    demoTimer = null;
+  }
+  if (statusElement.textContent === "MODO DEMO") {
+    setStatus("");
+  }
 }
 
 function applyTheme(nextTheme) {
@@ -231,7 +243,9 @@ function startGame(options = {}) {
     setStatus("Guarda o borra tus iniciales antes de empezar otra partida.");
     return;
   }
+  gameSessionId += 1;
   discardReplayState();
+  stopDemoMode();
   demoMode = demo;
   maybePersistCurrentScore();
   boardSize = Number(boardSizeSelect.value);
@@ -1039,9 +1053,15 @@ function startReplayOnBoard(replay) {
 function scheduleDemoMove() {
   if (!demoMode) return;
   if (demoTimer) window.clearTimeout(demoTimer);
+  const demoSessionId = gameSessionId;
   demoTimer = window.setTimeout(() => {
+    if (demoSessionId !== gameSessionId) return;
     if (!demoMode || isAnimating || replayMode || initialsEntryState.active) return;
-    const directions = ["up", "right", "down", "left"];
+    const directions = ["up", "right", "down", "left"].filter((direction) => canMoveInDirection(direction));
+    if (!directions.length) {
+      startGame({ demo: true });
+      return;
+    }
     const direction = directions[Math.floor(Math.random() * directions.length)];
     move(direction);
   }, 520);
@@ -1056,11 +1076,7 @@ function startAttractMode() {
 function startActualGame() {
   if (attractDismissed) return;
   attractDismissed = true;
-  demoMode = false;
-  if (demoTimer) {
-    window.clearTimeout(demoTimer);
-    demoTimer = null;
-  }
+  stopDemoMode();
   attractOverlayElement.classList.add("hidden");
   startGame();
 }
@@ -1135,6 +1151,30 @@ function getTraversal(direction) {
   const indexes = Array.from({ length: boardSize }, (_, index) => index);
   if (direction === "right" || direction === "down") indexes.reverse();
   return indexes;
+}
+
+function canMoveInDirection(direction) {
+  const vectors = {
+    up: [-1, 0],
+    down: [1, 0],
+    left: [0, -1],
+    right: [0, 1],
+  };
+  const [dr, dc] = vectors[direction];
+
+  for (let row = 0; row < boardSize; row += 1) {
+    for (let col = 0; col < boardSize; col += 1) {
+      const tile = gameState.cells[row][col];
+      if (!tile) continue;
+      const nextRow = row + dr;
+      const nextCol = col + dc;
+      if (!withinBounds(nextRow, nextCol)) continue;
+      const target = gameState.cells[nextRow][nextCol];
+      if (!target || target.value === tile.value) return true;
+    }
+  }
+
+  return false;
 }
 
 function scheduleEpicEffect(tile) {
@@ -1242,7 +1282,9 @@ function move(direction) {
     playMoveSound();
   }
 
+  const moveSessionId = gameSessionId;
   window.setTimeout(() => {
+    if (moveSessionId !== gameSessionId) return;
     const spawnedTile = addRandomTile();
     if (currentReplay && spawnedTile) {
       currentReplay.turns.push({
