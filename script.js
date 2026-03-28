@@ -241,7 +241,6 @@ function resetFlags() {
 
 function startGame(options = {}) {
   const { demo = false } = options;
-  const wasDemoMode = demoMode;
   if (initialsEntryState.active) {
     closeInitialsEntry({ discard: true });
   }
@@ -250,9 +249,6 @@ function startGame(options = {}) {
   stopDemoMode();
   setGameOverOverlay(false);
   demoMode = demo;
-  if (!wasDemoMode) {
-    maybePersistCurrentScore();
-  }
   boardSize = Number(boardSizeSelect.value);
   nextTileId = 0;
   tileMap.forEach((element) => element.remove());
@@ -661,6 +657,7 @@ function normalizeInitials(value) {
 }
 
 function openInitialsEntry(score) {
+  if (demoMode || !attractDismissed || !gameState.over) return;
   const previous = normalizeInitials(localStorage.getItem(PLAYER_INITIALS_KEY) || "");
   initialsEntryState.active = true;
   initialsEntryState.letters = ["", "", ""];
@@ -1116,6 +1113,7 @@ function startActualGame() {
   if (attractDismissed) return;
   attractDismissed = true;
   stopDemoMode();
+  closeInitialsEntry({ discard: true });
   attractOverlayElement.classList.add("hidden");
   startGame();
 }
