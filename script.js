@@ -881,7 +881,8 @@ function renderGlobalRecords(recordsByMode) {
       row.className = "records-row";
 
       const rank = document.createElement("span");
-      rank.textContent = expandedRecordsMode === mode ? String(index + 1) : "";
+      rank.className = "record-rank";
+      rank.textContent = String(index + 1);
 
       const initials = document.createElement("span");
       initials.textContent = record.initials;

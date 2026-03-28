@@ -1344,6 +1344,53 @@ button:hover {
   align-items: center;
 }
 
+.record-rank {
+  font-family: "Press Start 2P", "Space Grotesk", sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.08);
+}
+
+.records-list .records-row:nth-child(1) .record-rank {
+  color: #ffd166;
+}
+
+.records-list .records-row:nth-child(2) .record-rank {
+  color: #7cf7ff;
+}
+
+.records-list .records-row:nth-child(3) .record-rank {
+  color: #ff8ad8;
+}
+
+.records-list .records-row:nth-child(4) .record-rank {
+  color: #8ff0aa;
+}
+
+.records-list .records-row:nth-child(5) .record-rank {
+  color: #ffb347;
+}
+
+.records-list .records-row:nth-child(6) .record-rank {
+  color: #c9b6ff;
+}
+
+.records-list .records-row:nth-child(7) .record-rank {
+  color: #ff7f7f;
+}
+
+.records-list .records-row:nth-child(8) .record-rank {
+  color: #a8f0ff;
+}
+
+.records-list .records-row:nth-child(9) .record-rank {
+  color: #b8ff8a;
+}
+
+.records-list .records-row:nth-child(10) .record-rank {
+  color: #ffa8f2;
+}
+
 .records-row-head {
   background: transparent;
   color: var(--muted);
