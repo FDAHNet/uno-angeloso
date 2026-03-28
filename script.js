@@ -23,6 +23,7 @@ const statusElement = document.getElementById("status");
 const restartButton = document.getElementById("restart-button");
 const finishButton = document.getElementById("finish-button");
 const gameOverOverlayElement = document.getElementById("game-over-overlay");
+const gameOverReasonElement = document.getElementById("game-over-reason");
 const audioToggleButton = document.getElementById("audio-toggle-button");
 const undoToggleButton = document.getElementById("undo-toggle-button");
 const undoPanelElement = document.getElementById("undo-panel");
@@ -129,8 +130,11 @@ function updateAudioToggleButton() {
   audioToggleButton.setAttribute("aria-pressed", String(audioEnabled));
 }
 
-function setGameOverOverlay(visible) {
+function setGameOverOverlay(visible, reason = "") {
   gameOverOverlayElement.classList.toggle("hidden", !visible);
+  if (gameOverReasonElement) {
+    gameOverReasonElement.textContent = visible ? reason : "";
+  }
 }
 
 function formatElapsedTime(ms) {
@@ -1570,7 +1574,7 @@ function finishGame() {
   if (gameState.over || isAnimating || initialsEntryState.active) return;
   gameState.over = true;
   renderGameTimer();
-  setGameOverOverlay(true);
+  setGameOverOverlay(true, "BY USER");
   maybePersistCurrentScore();
   if (!initialsEntryState.active) setStatus("Partida finalizada.");
 }
@@ -1759,7 +1763,7 @@ function move(direction) {
       gameState.over = true;
       renderGameTimer();
       if (!demoMode) {
-        setGameOverOverlay(true);
+        setGameOverOverlay(true, "BY MACHINE");
         maybePersistCurrentScore();
         setStatus("No quedan movimientos. Pulsa Nueva partida.");
       } else {
