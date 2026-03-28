@@ -48,6 +48,7 @@ const letterUpButton = document.getElementById("letter-up-button");
 const letterDownButton = document.getElementById("letter-down-button");
 const selectLetterButton = document.getElementById("select-letter-button");
 const deleteLetterButton = document.getElementById("delete-letter-button");
+const closeInitialsButton = document.getElementById("close-initials-button");
 
 let boardSize = Number(boardSizeSelect.value);
 let nextTileId = 1;
@@ -234,8 +235,7 @@ function resetFlags() {
 function startGame(options = {}) {
   const { demo = false } = options;
   if (initialsEntryState.active) {
-    setStatus("Guarda o borra tus iniciales antes de empezar otra partida.");
-    return;
+    closeInitialsEntry({ discard: true });
   }
   gameSessionId += 1;
   discardReplayState();
@@ -634,10 +634,18 @@ function openInitialsEntry(score) {
   setStatus("Nuevo record. Introduce tus iniciales.");
 }
 
-function closeInitialsEntry() {
+function closeInitialsEntry(options = {}) {
+  const { discard = false } = options;
   initialsEntryState.active = false;
+  initialsEntryState.letters = ["", "", ""];
+  initialsEntryState.slot = 0;
+  initialsEntryState.selectedIndex = 0;
   initialsEntryState.pendingScore = 0;
   initialsEntryElement.classList.add("hidden");
+  if (discard) {
+    recordSaved = true;
+    setStatus("Anotacion cancelada.");
+  }
 }
 
 function getCurrentSelectedLetter() {
@@ -1645,6 +1653,7 @@ letterUpButton.addEventListener("click", () => shiftCurrentLetter(-1));
 letterDownButton.addEventListener("click", () => shiftCurrentLetter(1));
 selectLetterButton.addEventListener("click", commitCurrentLetter);
 deleteLetterButton.addEventListener("click", deleteLastLetter);
+closeInitialsButton.addEventListener("click", () => closeInitialsEntry({ discard: true }));
 submitGlobalRecordButton.addEventListener("click", submitGlobalRecord);
 closeReplayButton.addEventListener("click", closeReplayViewer);
 replayFirstButton.addEventListener("click", () => {

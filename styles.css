@@ -384,6 +384,12 @@ button:hover {
   box-shadow: none;
 }
 
+.danger-button {
+  color: #ffffff;
+  background: linear-gradient(135deg, #d62828, #a4161a);
+  box-shadow: 0 12px 24px rgba(164, 22, 26, 0.28);
+}
+
 .board-panel {
   margin-top: 18px;
   padding: 24px;
@@ -653,6 +659,11 @@ button:hover {
   color: #1a1123;
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   border-color: transparent;
+}
+
+.replay-viewer {
+  width: 100%;
+  margin-top: 2px;
 }
 
 .replay-indicator {
@@ -958,50 +969,63 @@ button:hover {
 }
 
 .replay-card {
-  padding: 18px;
-  border-radius: 24px;
+  padding: 12px;
+  border-radius: 18px;
 }
 
 .replay-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 16px;
+  gap: 8px;
+}
+
+.replay-header h3 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.replay-close-button {
+  padding: 7px 10px;
+  font-size: 0.72rem;
 }
 
 .replay-meta {
-  margin-top: 14px;
+  margin-top: 8px;
   color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .replay-empty {
-  margin: 14px 0 0;
-  max-height: 320px;
+  margin: 10px 0 0;
+  max-height: 120px;
   overflow: auto;
-  padding: 14px;
-  border-radius: 18px;
+  padding: 10px;
+  border-radius: 14px;
   background: rgba(0, 0, 0, 0.24);
   border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.74rem;
   line-height: 1.55;
 }
 
 .replay-controls {
-  margin-top: 16px;
+  margin-top: 10px;
   display: grid;
-  gap: 14px;
-  padding: 16px;
-  border-radius: 20px;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.08);
 }
 
 .replay-mode-label {
   justify-self: center;
-  padding: 8px 14px;
+  padding: 6px 10px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.26);
   border: 1px solid rgba(255,255,255,0.08);
   color: var(--accent);
-  font-size: 0.66rem;
+  font-size: 0.52rem;
   letter-spacing: 0.14em;
   text-shadow: 0 0 12px var(--glow);
 }
@@ -1009,20 +1033,21 @@ button:hover {
 .replay-vcr {
   display: flex;
   justify-content: center;
-  gap: 10px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .replay-control-button {
-  min-width: 76px;
-  padding: 10px 14px;
-  font-size: 0.84rem;
+  min-width: 44px;
+  padding: 7px 8px;
+  font-size: 0.7rem;
   box-shadow: none;
 }
 
 .replay-progress {
   text-align: center;
   color: var(--muted);
+  font-size: 0.72rem;
 }
 
 .hidden {

@@ -88,6 +88,30 @@
             <button id="finish-button" type="button">Ok, GANE.<br>Finaliza el juego</button>
           </div>
           <button id="audio-toggle-button" type="button" class="secondary-button audio-toggle-button" aria-pressed="false">🔈 OFF</button>
+          <section id="replay-viewer" class="replay-viewer hidden" aria-labelledby="replay-title">
+            <div class="replay-card">
+              <div class="replay-header">
+                <div>
+                  <p class="initials-eyebrow">Replay</p>
+                  <h3 id="replay-title">Ver partida</h3>
+                </div>
+                <button id="close-replay-button" type="button" class="secondary-button replay-close-button">Cerrar</button>
+              </div>
+              <div id="replay-meta" class="replay-meta"></div>
+              <div id="replay-empty" class="replay-empty hidden"></div>
+              <div id="replay-controls" class="replay-controls hidden">
+                <div id="replay-mode-label" class="replay-mode-label">STOP</div>
+                <div class="replay-vcr">
+                  <button id="replay-first-button" type="button" class="secondary-button replay-control-button">|&lt;</button>
+                  <button id="replay-prev-button" type="button" class="secondary-button replay-control-button">&lt;&lt;</button>
+                  <button id="replay-play-button" type="button" class="replay-control-button">Play</button>
+                  <button id="replay-next-button" type="button" class="secondary-button replay-control-button">&gt;&gt;</button>
+                  <button id="replay-last-button" type="button" class="secondary-button replay-control-button">&gt;|</button>
+                </div>
+                <div id="replay-progress" class="replay-progress"></div>
+              </div>
+            </div>
+          </section>
           <div id="replay-indicator" class="replay-indicator hidden">REPLAY</div>
         </aside>
         </div>
@@ -105,32 +129,9 @@
           <div class="initials-actions">
             <button id="select-letter-button" type="button">Marcar letra</button>
             <button id="delete-letter-button" type="button" class="secondary-button">Borrar letra</button>
+            <button id="close-initials-button" type="button" class="danger-button">Cerrar</button>
           </div>
           <p class="initials-help">Usa arriba y abajo para cambiar la letra. Marca la letra como en una recreativa clasica.</p>
-        </div>
-      </section>
-      <section id="replay-viewer" class="replay-viewer hidden" aria-labelledby="replay-title">
-        <div class="replay-card">
-          <div class="replay-header">
-            <div>
-              <p class="initials-eyebrow">Replay</p>
-              <h3 id="replay-title">Ver partida</h3>
-            </div>
-            <button id="close-replay-button" type="button" class="secondary-button">Cerrar</button>
-          </div>
-          <div id="replay-meta" class="replay-meta"></div>
-          <div id="replay-empty" class="replay-empty hidden"></div>
-          <div id="replay-controls" class="replay-controls hidden">
-            <div id="replay-mode-label" class="replay-mode-label">STOP</div>
-            <div class="replay-vcr">
-              <button id="replay-first-button" type="button" class="secondary-button replay-control-button">|&lt;</button>
-              <button id="replay-prev-button" type="button" class="secondary-button replay-control-button">&lt;&lt;</button>
-              <button id="replay-play-button" type="button" class="replay-control-button">Play</button>
-              <button id="replay-next-button" type="button" class="secondary-button replay-control-button">&gt;&gt;</button>
-              <button id="replay-last-button" type="button" class="secondary-button replay-control-button">&gt;|</button>
-            </div>
-            <div id="replay-progress" class="replay-progress"></div>
-          </div>
         </div>
       </section>
       <section id="records-panel" class="records-panel records-panel-collapsed" aria-labelledby="records-title">
