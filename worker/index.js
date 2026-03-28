@@ -1,3 +1,7 @@
+const GITHUB_OWNER = 'FDAHNet';
+const GITHUB_REPO = '2048';
+const GITHUB_LABEL = 'record';
+
 export default {
   async fetch(request, env) {
     const corsHeaders = {
@@ -41,7 +45,7 @@ export default {
       "```",
     ].join("\n");
 
-    const githubResponse = await fetch(`https://api.github.com/repos/${env.GITHUB_OWNER}/${env.GITHUB_REPO}/issues`, {
+    const githubResponse = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${env.GITHUB_TOKEN}`,
@@ -52,7 +56,7 @@ export default {
       body: JSON.stringify({
         title,
         body,
-        labels: [env.GITHUB_LABEL || "record"],
+        labels: [GITHUB_LABEL],
       }),
     });
 
@@ -85,3 +89,4 @@ function json(data, status, headers) {
     },
   });
 }
+

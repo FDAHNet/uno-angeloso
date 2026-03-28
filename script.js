@@ -25,8 +25,15 @@ const journalListElement = document.getElementById("journal-list");
 const uiFxLayerElement = document.getElementById("ui-fx-layer");
 const replayViewerElement = document.getElementById("replay-viewer");
 const replayMetaElement = document.getElementById("replay-meta");
-const replayJsonElement = document.getElementById("replay-json");
+const replayEmptyElement = document.getElementById("replay-empty");
+const replayControlsElement = document.getElementById("replay-controls");
+const replayProgressElement = document.getElementById("replay-progress");
 const closeReplayButton = document.getElementById("close-replay-button");
+const replayFirstButton = document.getElementById("replay-first-button");
+const replayPrevButton = document.getElementById("replay-prev-button");
+const replayPlayButton = document.getElementById("replay-play-button");
+const replayNextButton = document.getElementById("replay-next-button");
+const replayLastButton = document.getElementById("replay-last-button");
 const initialsEntryElement = document.getElementById("initials-entry");
 const initialsSlotsElement = document.getElementById("initials-slots");
 const currentLetterElement = document.getElementById("current-letter");
@@ -52,6 +59,7 @@ let recordsPanelOpen = false;
 let replayMode = false;
 let replayTimer = null;
 let replayResumeState = null;
+let replaySession = null;
 const ARCADE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const GLOBAL_MODES = ["4x4", "5x5", "6x6", "8x8"];
 const globalRecordsElements = Object.fromEntries(
@@ -305,6 +313,20 @@ function saveRecords(records) {
   localStorage.setItem(getRecordsKey(), JSON.stringify(records));
 }
 
+function resolveReplayForRecord(record) {
+  if (record?.replay) return record.replay;
+  if (
+    pendingGlobalRecord
+    && pendingGlobalRecord.replay
+    && pendingGlobalRecord.initials === record.initials
+    && pendingGlobalRecord.score === record.score
+    && pendingGlobalRecord.mode === record.mode
+  ) {
+    return pendingGlobalRecord.replay;
+  }
+  return null;
+}
+
 function isRecordScore(score) {
   if (score <= 0) return false;
   const records = loadRecords();
@@ -344,7 +366,7 @@ function renderRecords() {
     action.type = "button";
     action.className = "secondary-button record-action-button";
     action.textContent = "Ver partida";
-    action.addEventListener("click", () => openReplayViewer(record.replay, record));
+    action.addEventListener("click", () => openReplayViewer(resolveReplayForRecord(record), record));
 
     row.append(initials, mode, score, timestamp, action);
     recordsListElement.appendChild(row);
@@ -608,6 +630,14 @@ function savePendingRecord() {
     dateStyle: "short",
     timeStyle: "short",
   }).format(now);
+  const replayPayload = currentReplay
+    ? {
+        ...currentReplay,
+        finishedAt: now.toISOString(),
+        finalScore: initialsEntryState.pendingScore,
+        initials,
+      }
+    : null;
 
   const records = loadRecords();
   records.push({
@@ -616,6 +646,7 @@ function savePendingRecord() {
     mode: `${boardSize}x${boardSize}`,
     isoDate: now.toISOString(),
     displayDate,
+    replay: replayPayload,
   });
 
   records.sort((left, right) => {
@@ -631,14 +662,7 @@ function savePendingRecord() {
     mode: `${boardSize}x${boardSize}`,
     score: initialsEntryState.pendingScore,
     isoDate: now.toISOString(),
-    replay: currentReplay
-      ? {
-          ...currentReplay,
-          finishedAt: now.toISOString(),
-          finalScore: initialsEntryState.pendingScore,
-          initials,
-        }
-      : null,
+    replay: replayPayload,
   };
   submitGlobalRecordButton.classList.remove("hidden");
   closeInitialsEntry();
@@ -708,19 +732,25 @@ function openReplayViewer(replay, record) {
   replayViewerElement.classList.remove("hidden");
   replayMetaElement.textContent = `${record.initials} | ${record.mode} | ${record.score} puntos | ${record.displayDate}`;
   if (!replay) {
-    replayJsonElement.textContent = "Esta partida no tiene replay disponible. Fue guardada antes de activar el sistema de reproduccion.";
+    replayEmptyElement.textContent = "Esta partida no tiene replay disponible. Fue guardada antes de activar el sistema de reproduccion.";
+    replayEmptyElement.classList.remove("hidden");
+    replayControlsElement.classList.add("hidden");
     setStatus("Replay no disponible para este record.");
     return;
   }
 
-  replayJsonElement.textContent = JSON.stringify(replay, null, 2);
+  replayEmptyElement.classList.add("hidden");
+  replayControlsElement.classList.remove("hidden");
   startReplayOnBoard(replay);
 }
 
 function closeReplayViewer() {
   replayViewerElement.classList.add("hidden");
   replayMetaElement.textContent = "";
-  replayJsonElement.textContent = "";
+  replayEmptyElement.textContent = "";
+  replayEmptyElement.classList.add("hidden");
+  replayControlsElement.classList.add("hidden");
+  replayProgressElement.textContent = "";
   stopReplayMode();
 }
 
@@ -743,6 +773,7 @@ function stopReplayMode() {
     window.clearTimeout(replayTimer);
     replayTimer = null;
   }
+  replaySession = null;
   setReplayVisualState(false);
   if (!replayResumeState) return;
 
@@ -753,6 +784,22 @@ function stopReplayMode() {
   render();
   setStatus(replayResumeState.statusText);
   replayResumeState = null;
+}
+
+function updateReplayControls() {
+  if (!replaySession) {
+    replayProgressElement.textContent = "";
+    replayPlayButton.textContent = "Play";
+    return;
+  }
+
+  const totalTurns = replaySession.replay.turns.length;
+  replayProgressElement.textContent = `Paso ${replaySession.index} de ${totalTurns}`;
+  replayPlayButton.textContent = replaySession.playing ? "Pausa" : "Play";
+  replayFirstButton.disabled = replaySession.index === 0;
+  replayPrevButton.disabled = replaySession.index === 0;
+  replayNextButton.disabled = replaySession.index >= totalTurns;
+  replayLastButton.disabled = replaySession.index >= totalTurns;
 }
 
 function insertReplaySpawn(spawn) {
@@ -771,6 +818,7 @@ function replayMove(direction, spawn) {
   const [dr, dc] = vectors[direction];
   const traversed = getTraversal(direction);
   const mergedTargets = new Set();
+  let gained = 0;
 
   resetFlags();
 
@@ -802,6 +850,7 @@ function replayMove(direction, spawn) {
         target.value = tile.value * 2;
         target.justMerged = true;
         mergedTargets.add(targetKey);
+        gained += target.value;
       } else {
         tile.row = currentRow;
         tile.col = currentCol;
@@ -811,20 +860,83 @@ function replayMove(direction, spawn) {
   }
 
   gameState.cells = normalizeCells();
+  gameState.score += gained;
   if (spawn) insertReplaySpawn(spawn);
   render();
 }
 
-function playReplaySequence(replay, index = 0) {
-  if (!replayMode) return;
-  if (index >= replay.turns.length) {
+function initializeReplayBoard(replay) {
+  gameState = createEmptyState();
+  gameState.score = 0;
+  gameState.over = true;
+  gameState.cells = Array.from({ length: boardSize }, () => Array(boardSize).fill(null));
+  nextTileId = 0;
+  replay.start.forEach((spawn) => insertReplaySpawn(spawn));
+  render();
+}
+
+function setReplayToIndex(index) {
+  if (!replaySession || !replayMode) return;
+
+  const boundedIndex = Math.max(0, Math.min(index, replaySession.replay.turns.length));
+  initializeReplayBoard(replaySession.replay);
+
+  for (let turnIndex = 0; turnIndex < boundedIndex; turnIndex += 1) {
+    const turn = replaySession.replay.turns[turnIndex];
+    replayMove(turn.move, turn.spawn);
+  }
+
+  replaySession.index = boundedIndex;
+  updateReplayControls();
+
+  if (boundedIndex >= replaySession.replay.turns.length) {
+    setStatus("Replay finalizada.");
+  } else {
+    setStatus(`Replay ${replaySession.replay.mode}: paso ${boundedIndex} de ${replaySession.replay.turns.length}.`);
+  }
+}
+
+function scheduleReplayPlayback() {
+  if (!replaySession || !replaySession.playing || !replayMode) return;
+  if (replaySession.index >= replaySession.replay.turns.length) {
+    replaySession.playing = false;
+    updateReplayControls();
     setStatus("Replay finalizada.");
     return;
   }
 
-  const turn = replay.turns[index];
-  replayMove(turn.move, turn.spawn);
-  replayTimer = window.setTimeout(() => playReplaySequence(replay, index + 1), 520);
+  replayTimer = window.setTimeout(() => {
+    if (!replaySession || !replayMode) return;
+    setReplayToIndex(replaySession.index + 1);
+    scheduleReplayPlayback();
+  }, 900);
+}
+
+function pauseReplayPlayback() {
+  if (replayTimer) {
+    window.clearTimeout(replayTimer);
+    replayTimer = null;
+  }
+  if (replaySession) {
+    replaySession.playing = false;
+    updateReplayControls();
+  }
+}
+
+function toggleReplayPlayback() {
+  if (!replaySession) return;
+  if (replaySession.playing) {
+    pauseReplayPlayback();
+    return;
+  }
+
+  if (replaySession.index >= replaySession.replay.turns.length) {
+    setReplayToIndex(0);
+  }
+
+  replaySession.playing = true;
+  updateReplayControls();
+  scheduleReplayPlayback();
 }
 
 function startReplayOnBoard(replay) {
@@ -848,18 +960,17 @@ function startReplayOnBoard(replay) {
   render();
   triggerReplayWipe();
   setReplayVisualState(true);
-  setStatus(`Replay ${replay.mode} en reproduccion.`);
+  setStatus(`Replay ${replay.mode} listo para reproducir.`);
 
   window.setTimeout(() => {
     if (!replayMode) return;
-    gameState = createEmptyState();
-    gameState.score = 0;
-    gameState.over = true;
-    gameState.cells = Array.from({ length: boardSize }, () => Array(boardSize).fill(null));
-    nextTileId = 0;
-    replay.start.forEach((spawn) => insertReplaySpawn(spawn));
-    render();
-    playReplaySequence(replay, 0);
+    replaySession = {
+      replay,
+      index: 0,
+      playing: false,
+    };
+    initializeReplayBoard(replay);
+    updateReplayControls();
   }, 240);
 }
 
@@ -1218,6 +1329,38 @@ function playFanfare128() {
 
 function handleKeydown(event) {
   void unlockAudio();
+  if (replayMode && replaySession) {
+    if (event.key === " " || event.key === "Enter") {
+      event.preventDefault();
+      toggleReplayPlayback();
+      return;
+    }
+    if (event.key === "ArrowRight" || event.key === "d" || event.key === "D") {
+      event.preventDefault();
+      pauseReplayPlayback();
+      setReplayToIndex(replaySession.index + 1);
+      return;
+    }
+    if (event.key === "ArrowLeft" || event.key === "a" || event.key === "A") {
+      event.preventDefault();
+      pauseReplayPlayback();
+      setReplayToIndex(replaySession.index - 1);
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      pauseReplayPlayback();
+      setReplayToIndex(0);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      pauseReplayPlayback();
+      setReplayToIndex(replaySession.replay.turns.length);
+      return;
+    }
+  }
+
   if (initialsEntryState.active) {
     if (event.key === "ArrowUp" || event.key === "w" || event.key === "W") {
       event.preventDefault();
@@ -1303,6 +1446,24 @@ selectLetterButton.addEventListener("click", commitCurrentLetter);
 deleteLetterButton.addEventListener("click", deleteLastLetter);
 submitGlobalRecordButton.addEventListener("click", submitGlobalRecord);
 closeReplayButton.addEventListener("click", closeReplayViewer);
+replayFirstButton.addEventListener("click", () => {
+  pauseReplayPlayback();
+  setReplayToIndex(0);
+});
+replayPrevButton.addEventListener("click", () => {
+  pauseReplayPlayback();
+  setReplayToIndex((replaySession?.index || 0) - 1);
+});
+replayPlayButton.addEventListener("click", toggleReplayPlayback);
+replayNextButton.addEventListener("click", () => {
+  pauseReplayPlayback();
+  setReplayToIndex((replaySession?.index || 0) + 1);
+});
+replayLastButton.addEventListener("click", () => {
+  pauseReplayPlayback();
+  if (!replaySession) return;
+  setReplayToIndex(replaySession.replay.turns.length);
+});
 toggleRecordsButton.addEventListener("click", () => setRecordsPanelOpen(!recordsPanelOpen));
 window.addEventListener("keydown", handleKeydown);
 boardElement.addEventListener("touchstart", handleTouchStart, { passive: true });

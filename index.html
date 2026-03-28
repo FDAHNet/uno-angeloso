@@ -6,7 +6,7 @@
   <title>2048 Smooth</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
@@ -15,7 +15,7 @@
     <section class="hero">
       <div>
         <p class="eyebrow">Arcade Puzzle</p>
-        <h1>2048 <span class="title-accent">Angeloso</span></h1>
+        <h1>2048 <span class="title-accent">Angeloso</span> <span class="version-stamp">2026-03-28_12-27</span></h1>
         <p class="lead">
           El juego clasico de 2048 con alguna sorpresa.
         </p>
@@ -99,7 +99,17 @@
             <button id="close-replay-button" type="button" class="secondary-button">Cerrar</button>
           </div>
           <div id="replay-meta" class="replay-meta"></div>
-          <pre id="replay-json" class="replay-json"></pre>
+          <div id="replay-empty" class="replay-empty hidden"></div>
+          <div id="replay-controls" class="replay-controls hidden">
+            <div class="replay-vcr">
+              <button id="replay-first-button" type="button" class="secondary-button replay-control-button">|&lt;</button>
+              <button id="replay-prev-button" type="button" class="secondary-button replay-control-button">&lt;&lt;</button>
+              <button id="replay-play-button" type="button" class="replay-control-button">Play</button>
+              <button id="replay-next-button" type="button" class="secondary-button replay-control-button">&gt;&gt;</button>
+              <button id="replay-last-button" type="button" class="secondary-button replay-control-button">&gt;|</button>
+            </div>
+            <div id="replay-progress" class="replay-progress"></div>
+          </div>
         </div>
       </section>
       <section id="records-panel" class="records-panel records-panel-collapsed" aria-labelledby="records-title">
