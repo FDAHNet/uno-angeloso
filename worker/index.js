@@ -1,6 +1,8 @@
 const GITHUB_OWNER = 'FDAHNet';
 const GITHUB_REPO = '2048';
 const GITHUB_LABEL = 'record';
+const MAX_ISSUE_BODY = 62000;
+const MAX_REPLAY_CHUNK = 56000;
 
 export default {
   async fetch(request, env) {
@@ -30,48 +32,62 @@ export default {
       return json({ error: validation }, 400, corsHeaders);
     }
 
-    const title = `[Record] ${payload.initials} - ${payload.score} - ${payload.mode}`;
-    const replayJson = JSON.stringify(payload.replay);
-    const body = [
-      "New global score submission",
-      "",
-      `Initials: ${payload.initials}`,
-      `Mode: ${payload.mode}`,
-      `Score: ${payload.score}`,
-      `Date: ${payload.isoDate}`,
-      "",
-      "Replay JSON:",
-      "```json",
-      replayJson,
-      "```",
-    ].join("\n");
+    try {
+      const title = `[Record] ${payload.initials} - ${payload.score} - ${payload.mode}`;
+      const replayJson = JSON.stringify(payload.replay);
+      const baseLines = [
+        "New global score submission",
+        "",
+        `Initials: ${payload.initials}`,
+        `Mode: ${payload.mode}`,
+        `Score: ${payload.score}`,
+        `Date: ${payload.isoDate}`,
+      ];
 
-    if (body.length > 62000) {
-      return json({ error: "Replay demasiado larga para GitHub Issues" }, 413, corsHeaders);
+      const inlineBody = [
+        ...baseLines,
+        "",
+        "Replay Storage: inline",
+        "Replay Parts: 1",
+        "",
+        "Replay JSON:",
+        "```json",
+        replayJson,
+        "```",
+      ].join("\n");
+
+      let issue;
+
+      if (inlineBody.length <= MAX_ISSUE_BODY) {
+        issue = await createIssue(env, title, inlineBody);
+      } else {
+        const chunks = chunkString(replayJson, MAX_REPLAY_CHUNK);
+        const issueBody = [
+          ...baseLines,
+          "",
+          "Replay Storage: comments",
+          `Replay Parts: ${chunks.length}`,
+          "",
+          "Replay JSON is stored across issue comments.",
+        ].join("\n");
+
+        issue = await createIssue(env, title, issueBody);
+
+        for (let index = 0; index < chunks.length; index += 1) {
+          const commentBody = [
+            `Replay Part ${index + 1}/${chunks.length}`,
+            "```json",
+            chunks[index],
+            "```",
+          ].join("\n");
+          await createIssueComment(env, issue.number, commentBody);
+        }
+      }
+
+      return json({ ok: true, issueUrl: issue.html_url }, 200, corsHeaders);
+    } catch (error) {
+      return json({ error: "GitHub issue creation failed", details: error.message || String(error) }, 502, corsHeaders);
     }
-
-    const githubResponse = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${env.GITHUB_TOKEN}`,
-        "Content-Type": "application/json",
-        "User-Agent": "2048-angeloso-worker",
-        "Accept": "application/vnd.github+json",
-      },
-      body: JSON.stringify({
-        title,
-        body,
-        labels: [GITHUB_LABEL],
-      }),
-    });
-
-    if (!githubResponse.ok) {
-      const errorText = await githubResponse.text();
-      return json({ error: "GitHub issue creation failed", details: errorText }, 502, corsHeaders);
-    }
-
-    const issue = await githubResponse.json();
-    return json({ ok: true, issueUrl: issue.html_url }, 200, corsHeaders);
   },
 };
 
@@ -83,6 +99,56 @@ function validatePayload(payload) {
   if (!payload.isoDate) return "Date is required";
   if (!payload.replay || typeof payload.replay !== "object") return "Replay is required";
   return "";
+}
+
+function chunkString(value, chunkSize) {
+  const chunks = [];
+  for (let index = 0; index < value.length; index += chunkSize) {
+    chunks.push(value.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
+async function createIssue(env, title, body) {
+  const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues`, {
+    method: "POST",
+    body: JSON.stringify({
+      title,
+      body,
+      labels: [GITHUB_LABEL],
+    }),
+  });
+
+  return response.json();
+}
+
+async function createIssueComment(env, issueNumber, body) {
+  const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues/${issueNumber}/comments`, {
+    method: "POST",
+    body: JSON.stringify({ body }),
+  });
+
+  return response.json();
+}
+
+async function githubRequest(env, path, init) {
+  const response = await fetch(`https://api.github.com${path}`, {
+    ...init,
+    headers: {
+      "Authorization": `Bearer ${env.GITHUB_TOKEN}`,
+      "Content-Type": "application/json",
+      "User-Agent": "2048-angeloso-worker",
+      "Accept": "application/vnd.github+json",
+      ...(init.headers || {}),
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText);
+  }
+
+  return response;
 }
 
 function json(data, status, headers) {

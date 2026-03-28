@@ -655,8 +655,7 @@ function updateScore(points) {
 function maybeCelebrateLiveGlobalRecord() {
   if (demoMode || globalRecordFanfarePlayed || !globalRecordsLoaded) return;
   const mode = `${boardSize}x${boardSize}`;
-  const currentModeRecords = globalRecordsCache[mode] || [];
-  const currentTopScore = currentModeRecords.length ? Math.max(...currentModeRecords.map((record) => record.score)) : 0;
+  const currentTopScore = getTopScoreForMode(mode);
   if (gameState.score > currentTopScore) {
     globalRecordFanfarePlayed = true;
     activateBestScoreCelebration();
@@ -1140,12 +1139,29 @@ function setExpandedRecordsMode(mode) {
   renderGlobalRecords(globalRecordsCache);
 }
 
+function getTopScoreForMode(mode) {
+  const records = globalRecordsCache[mode] || [];
+  return records.length ? Math.max(...records.map((record) => record.score)) : 0;
+}
+
+function mergeGlobalRecordIntoCache(record) {
+  if (!record?.mode || !globalRecordsCache[record.mode]) return;
+  const merged = [...globalRecordsCache[record.mode], record];
+  merged.sort((left, right) => {
+    if (right.score !== left.score) return right.score - left.score;
+    return left.isoDate.localeCompare(right.isoDate);
+  });
+  globalRecordsCache[record.mode] = merged.slice(0, MAX_RECORDS_PER_MODE);
+  globalRecordsLoaded = true;
+}
+
 function parseGlobalRecord(issue) {
   const body = issue.body || "";
   const initials = body.match(/Initials:\s*([A-Z]{3})/i)?.[1]?.toUpperCase();
   const mode = body.match(/Mode:\s*([0-9]+x[0-9]+)/i)?.[1];
   const scoreText = body.match(/Score:\s*([0-9]+)/i)?.[1];
   const replayMatch = body.match(/```json\s*([\s\S]*?)```/i);
+  const replayParts = Number(body.match(/Replay Parts:\s*([0-9]+)/i)?.[1] || 0);
   const score = Number(scoreText);
 
   if (!initials || !mode || !Number.isFinite(score)) return null;
@@ -1164,12 +1180,56 @@ function parseGlobalRecord(issue) {
     mode,
     score,
     isoDate: issue.created_at,
+    issueNumber: issue.number,
+    commentsUrl: issue.comments_url,
+    replayParts,
     displayDate: new Intl.DateTimeFormat("es-ES", {
       dateStyle: "short",
       timeStyle: "short",
     }).format(new Date(issue.created_at)),
     replay,
   };
+}
+
+function parseReplayChunkComment(body) {
+  const match = body.match(/Replay Part\s+([0-9]+)\/([0-9]+)[\s\S]*?```json\s*([\s\S]*?)```/i);
+  if (!match) return null;
+  return {
+    index: Number(match[1]),
+    total: Number(match[2]),
+    chunk: match[3].trim(),
+  };
+}
+
+async function fetchReplayForRecord(record) {
+  if (record?.replay) return record.replay;
+  if (!record?.replayParts || !record?.commentsUrl) return null;
+
+  const comments = [];
+  const cacheBuster = Date.now();
+
+  for (let page = 1; page <= 10; page += 1) {
+    const commentsUrl = new URL(record.commentsUrl);
+    commentsUrl.searchParams.set("per_page", "100");
+    commentsUrl.searchParams.set("page", String(page));
+    commentsUrl.searchParams.set("_", String(cacheBuster));
+    const response = await fetch(commentsUrl.toString(), { cache: "no-store" });
+    if (!response.ok) throw new Error(`GitHub comments ${response.status}`);
+    const pageComments = await response.json();
+    comments.push(...pageComments);
+    if (pageComments.length < 100) break;
+  }
+
+  const chunks = comments
+    .map((comment) => parseReplayChunkComment(comment.body || ""))
+    .filter(Boolean)
+    .sort((left, right) => left.index - right.index);
+
+  if (!chunks.length || chunks.length < record.replayParts) return null;
+
+  const replay = JSON.parse(chunks.map((chunk) => chunk.chunk).join(""));
+  record.replay = replay;
+  return replay;
 }
 
 async function fetchGlobalRecords() {
@@ -1316,10 +1376,10 @@ function savePendingRecord() {
     mode: `${boardSize}x${boardSize}`,
     score: initialsEntryState.pendingScore,
     isoDate: now.toISOString(),
+    displayDate,
     replay: replayPayload,
   };
-  const currentModeRecords = globalRecordsCache[pendingGlobalRecord.mode] || [];
-  const currentTopScore = currentModeRecords.length ? Math.max(...currentModeRecords.map((record) => record.score)) : 0;
+  const currentTopScore = getTopScoreForMode(pendingGlobalRecord.mode);
   const isGlobalTopScore = pendingGlobalRecord.score > currentTopScore;
   closeInitialsEntry();
   renderRecords();
@@ -1379,6 +1439,8 @@ function submitGlobalRecord() {
       return response.json();
     })
     .then(() => {
+      mergeGlobalRecordIntoCache(pendingGlobalRecord);
+      renderGlobalRecords(globalRecordsCache);
       pendingGlobalRecord = null;
       setStatus("Record global enviado correctamente.");
       fetchGlobalRecords();
@@ -1388,9 +1450,21 @@ function submitGlobalRecord() {
     });
 }
 
-function openReplayViewer(replay, record) {
+async function openReplayViewer(replay, record) {
   replayViewerElement.classList.remove("hidden");
   replayMetaElement.textContent = `${record.initials} | ${record.mode} | ${record.score} puntos | ${record.displayDate}`;
+  if (!replay && record?.replayParts) {
+    replayEmptyElement.textContent = "Cargando replay desde GitHub...";
+    replayEmptyElement.classList.remove("hidden");
+    replayControlsElement.classList.add("hidden");
+    setStatus("Cargando replay...");
+    try {
+      replay = await fetchReplayForRecord(record);
+    } catch (error) {
+      replay = null;
+      setStatus(`Error al cargar replay: ${error.message}`);
+    }
+  }
   if (!replay) {
     replayEmptyElement.textContent = "Esta partida no tiene replay disponible. Fue guardada antes de activar el sistema de reproduccion.";
     replayEmptyElement.classList.remove("hidden");
