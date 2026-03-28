@@ -26,6 +26,7 @@ const recordsPanelElement = document.getElementById("records-panel");
 const toggleRecordsButton = document.getElementById("toggle-records-button");
 const globalRecordsGroupsElement = document.getElementById("global-records-groups");
 const journalListElement = document.getElementById("journal-list");
+const journalTitleElement = document.getElementById("journal-title");
 const journalSubtitleElement = document.getElementById("journal-subtitle");
 const uiFxLayerElement = document.getElementById("ui-fx-layer");
 const starfieldElement = document.getElementById("starfield");
@@ -79,6 +80,7 @@ let attractDismissed = false;
 let theme = localStorage.getItem(THEME_KEY) || "crt";
 let gameSessionId = 0;
 let expandedRecordsMode = null;
+let replayArrowRotation = 0;
 let globalRecordsCache = Object.fromEntries(["4x4", "5x5", "6x6", "8x8"].map((mode) => [mode, []]));
 let globalRecordFanfarePlayed = false;
 const ARCADE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -154,11 +156,11 @@ function buildStarfield() {
       const scale = randomBetween(config.scale[0], config.scale[1]);
       star.className = "star";
       if (Math.random() > 0.68) star.classList.add("star-cross");
-      star.style.setProperty("--x", `${Math.round(Math.random() * 112)}%`);
-      star.style.setProperty("--y", `${Math.round(Math.random() * 112)}%`);
+      star.style.left = `${Math.round(Math.random() * 112)}%`;
+      star.style.top = `${Math.round(Math.random() * 112)}%`;
       star.style.setProperty("--star-size", `${size.toFixed(2)}px`);
       star.style.setProperty("--star-scale", scale.toFixed(2));
-      star.style.setProperty("--star-opacity", randomBetween(0.42, 0.95).toFixed(2));
+      star.style.setProperty("--star-opacity", randomBetween(0.58, 1).toFixed(2));
       star.style.setProperty("--delay", `${randomBetween(-6, 0).toFixed(2)}s`);
       star.style.setProperty("--twinkle-duration", `${randomBetween(2.6, 5.8).toFixed(2)}s`);
       star.style.setProperty("--pulse-duration", `${randomBetween(4.2, 8.4).toFixed(2)}s`);
@@ -455,6 +457,7 @@ function renderJournal() {
   journalListElement.innerHTML = "";
 
   if (replayMode && replaySession?.replay) {
+    journalTitleElement.textContent = "Movimientos";
     journalSubtitleElement.textContent = "Pulsa una direccion y sigue el movimiento paso a paso.";
     const turns = replaySession.replay.turns || [];
     if (!turns.length) {
@@ -483,6 +486,7 @@ function renderJournal() {
     return;
   }
 
+  journalTitleElement.textContent = journalTitleElement.dataset.defaultTitle || "Bitacora";
   journalSubtitleElement.textContent = "Logros de 128 o mas durante la partida.";
 
   if (!journalEntries.length) {
@@ -566,22 +570,40 @@ function getDirectionLabel(direction) {
   return labels[direction] || direction?.toUpperCase?.() || "";
 }
 
-function getDirectionArrow(direction) {
-  const arrows = {
-    up: "↑",
-    down: "↓",
-    left: "←",
-    right: "→",
-  };
-  return arrows[direction] || "";
-}
-
 function updateReplayArrow(direction = "") {
   if (!replayArrowOverlayElement) return;
-  const arrow = getDirectionArrow(direction);
-  replayArrowOverlayElement.textContent = arrow;
-  replayArrowOverlayElement.classList.toggle("hidden", !arrow || !replayMode);
-  replayArrowOverlayElement.classList.toggle("is-visible", Boolean(arrow && replayMode));
+  const hasDirection = ["up", "down", "left", "right"].includes(direction);
+  if (!hasDirection || !replayMode) {
+    replayArrowRotation = 0;
+    replayArrowOverlayElement.style.setProperty("--replay-arrow-rotation", "0deg");
+    replayArrowOverlayElement.style.setProperty("--replay-arrow-from", "0deg");
+    replayArrowOverlayElement.classList.remove("is-turning");
+    replayArrowOverlayElement.dataset.direction = "";
+    replayArrowOverlayElement.classList.add("hidden");
+    replayArrowOverlayElement.classList.remove("is-visible");
+    return;
+  }
+
+  const targetRotation = getReplayArrowRotation(direction);
+  replayArrowOverlayElement.dataset.direction = direction;
+  replayArrowOverlayElement.style.setProperty("--replay-arrow-from", `${replayArrowRotation}deg`);
+  replayArrowOverlayElement.style.setProperty("--replay-arrow-rotation", `${targetRotation}deg`);
+  replayArrowOverlayElement.classList.remove("is-turning");
+  void replayArrowOverlayElement.offsetWidth;
+  replayArrowOverlayElement.classList.add("is-turning");
+  replayArrowRotation = targetRotation;
+  replayArrowOverlayElement.classList.toggle("hidden", !hasDirection || !replayMode);
+  replayArrowOverlayElement.classList.toggle("is-visible", Boolean(hasDirection && replayMode));
+}
+
+function getReplayArrowRotation(direction) {
+  const rotations = {
+    right: 0,
+    down: 90,
+    left: 180,
+    up: 270,
+  };
+  return rotations[direction] ?? 0;
 }
 
 function renderGlobalRecordsLoading() {
