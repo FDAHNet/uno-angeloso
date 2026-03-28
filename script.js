@@ -15,6 +15,7 @@ const boardElement = document.getElementById("board");
 const fxLayer = document.getElementById("fx-layer");
 const scoreElement = document.getElementById("score");
 const bestScoreElement = document.getElementById("best-score");
+const bestScoreCardElement = document.getElementById("best-score-card");
 const statusElement = document.getElementById("status");
 const restartButton = document.getElementById("restart-button");
 const finishButton = document.getElementById("finish-button");
@@ -83,6 +84,7 @@ let expandedRecordsMode = null;
 let replayArrowRotation = 0;
 let globalRecordsCache = Object.fromEntries(["4x4", "5x5", "6x6", "8x8"].map((mode) => [mode, []]));
 let globalRecordFanfarePlayed = false;
+let bestScoreBurstTimer = null;
 const ARCADE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const GLOBAL_MODES = ["4x4", "5x5", "6x6", "8x8"];
 const globalRecordsElements = Object.fromEntries(
@@ -310,6 +312,7 @@ function startGame(options = {}) {
   journalEntries = [];
   currentReplay = null;
   globalRecordFanfarePlayed = false;
+  clearBestScoreCelebration();
   gameState = createEmptyState();
   buildGrid();
   const startSpawnA = addRandomTile();
@@ -339,6 +342,10 @@ function setRecordsPanelOpen(nextOpen) {
   recordsPanelOpen = nextOpen;
   recordsPanelElement.classList.toggle("records-panel-collapsed", !recordsPanelOpen);
   toggleRecordsButton.textContent = recordsPanelOpen ? "Ocultar records" : "Mostrar records";
+  if (recordsPanelOpen) {
+    renderGlobalRecordsLoading();
+    fetchGlobalRecords();
+  }
 }
 
 function setStatus(message) {
@@ -359,9 +366,34 @@ function maybeCelebrateLiveGlobalRecord() {
   const currentTopScore = currentModeRecords.length ? Math.max(...currentModeRecords.map((record) => record.score)) : 0;
   if (gameState.score > currentTopScore) {
     globalRecordFanfarePlayed = true;
+    activateBestScoreCelebration();
     playGlobalRecordFanfare();
     setStatus("Nuevo record global en juego.");
   }
+}
+
+function activateBestScoreCelebration() {
+  if (!bestScoreCardElement) return;
+  if (bestScoreBurstTimer) {
+    window.clearTimeout(bestScoreBurstTimer);
+    bestScoreBurstTimer = null;
+  }
+  bestScoreCardElement.classList.remove("record-broken");
+  void bestScoreCardElement.offsetWidth;
+  bestScoreCardElement.classList.add("record-broken", "record-leader");
+  bestScoreBurstTimer = window.setTimeout(() => {
+    bestScoreCardElement.classList.remove("record-broken");
+    bestScoreBurstTimer = null;
+  }, 3200);
+}
+
+function clearBestScoreCelebration() {
+  if (!bestScoreCardElement) return;
+  if (bestScoreBurstTimer) {
+    window.clearTimeout(bestScoreBurstTimer);
+    bestScoreBurstTimer = null;
+  }
+  bestScoreCardElement.classList.remove("record-broken", "record-leader");
 }
 
 function render() {
@@ -722,7 +754,17 @@ function parseGlobalRecord(issue) {
 
 async function fetchGlobalRecords() {
   try {
-    const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues?state=all&labels=${GLOBAL_RECORD_LABEL}&per_page=100`);
+    const cacheBuster = Date.now();
+    const response = await fetch(
+      `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues?state=all&labels=${GLOBAL_RECORD_LABEL}&per_page=100&_=${cacheBuster}`,
+      {
+        cache: "no-store",
+        headers: {
+          "Cache-Control": "no-cache, no-store, max-age=0",
+          Pragma: "no-cache",
+        },
+      }
+    );
     if (!response.ok) throw new Error(`GitHub ${response.status}`);
     const issues = await response.json();
     const records = issues
@@ -1811,6 +1853,9 @@ window.addEventListener("pointerdown", () => {
 window.addEventListener("visibilitychange", () => {
   if (audioEnabled && document.visibilityState === "visible") {
     void unlockAudio();
+  }
+  if (document.visibilityState === "visible" && recordsPanelOpen) {
+    fetchGlobalRecords();
   }
 });
 restartButton.addEventListener("click", () => {
