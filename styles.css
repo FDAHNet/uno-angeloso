@@ -696,7 +696,7 @@ button:hover {
 .replay-arrow-overlay {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 6;
   display: grid;
   place-items: center;
   pointer-events: none;
@@ -712,14 +712,16 @@ button:hover {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  filter: drop-shadow(0 0 22px color-mix(in srgb, var(--accent) 52%, transparent));
+  filter:
+    drop-shadow(0 0 16px rgba(0, 255, 255, 0.68))
+    drop-shadow(0 0 32px rgba(0, 214, 255, 0.46));
 }
 
 .replay-arrow-shaft {
   width: clamp(4rem, 13vw, 7rem);
   height: clamp(1rem, 2.8vw, 1.55rem);
   border-radius: 999px;
-  background: linear-gradient(90deg, #7cf7ff, #00d9ff);
+  background: linear-gradient(90deg, #c9ffff, #37f6ff 48%, #00d7ff);
 }
 
 .replay-arrow-head {
@@ -728,7 +730,7 @@ button:hover {
   height: 0;
   border-top: clamp(1.1rem, 2.8vw, 1.7rem) solid transparent;
   border-bottom: clamp(1.1rem, 2.8vw, 1.7rem) solid transparent;
-  border-left: clamp(1.8rem, 4.6vw, 2.8rem) solid #49f1ff;
+  border-left: clamp(1.8rem, 4.6vw, 2.8rem) solid #7afbff;
 }
 
 .replay-arrow-overlay.is-visible {
