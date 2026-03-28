@@ -701,6 +701,7 @@ function renderGlobalRecords(recordsByMode) {
     });
   });
   syncExpandedRecordsUI();
+  maybeCelebrateLiveGlobalRecord();
 }
 
 function syncExpandedRecordsUI() {
@@ -1495,6 +1496,7 @@ function move(direction) {
       });
     }
     render();
+    maybeCelebrateLiveGlobalRecord();
 
     epicBursts.forEach((entry) => createEpicBurst(entry.row, entry.col, entry.value));
     epicBursts
