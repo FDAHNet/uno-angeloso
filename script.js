@@ -199,7 +199,11 @@ function startGame() {
     setStatus("Guarda o borra tus iniciales antes de empezar otra partida.");
     return;
   }
-  if (replayMode) stopReplayMode();
+  if (!replayViewerElement.classList.contains("hidden")) {
+    closeReplayViewer();
+  } else if (replayMode) {
+    stopReplayMode();
+  }
   maybePersistCurrentScore();
   boardSize = Number(boardSizeSelect.value);
   nextTileId = 0;
@@ -1280,8 +1284,12 @@ function playTone({ frequency, duration, type = "sine", volume = 0.05, when = 0,
   const context = ensureAudio();
   if (!context || !audioMasterGain) return;
   if (context.state !== "running") {
-    context.resume().catch(() => {});
-    if (context.state !== "running") return;
+    unlockAudio().then((readyContext) => {
+      if (readyContext?.state === "running") {
+        playTone({ frequency, duration, type, volume, when, slideTo });
+      }
+    }).catch(() => {});
+    return;
   }
 
   const startAt = context.currentTime + when;
