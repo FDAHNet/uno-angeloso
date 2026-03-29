@@ -424,6 +424,89 @@ h1 {
   flex-wrap: wrap;
 }
 
+.advanced-bets-panel {
+  margin-top: 18px;
+}
+
+.advanced-bets-card {
+  padding: 20px 22px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.08));
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.24);
+}
+
+.advanced-bets-header,
+.advanced-bet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.advanced-bets-help {
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+
+.advanced-bets-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.advanced-bet-row {
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+}
+
+.advanced-bet-copy {
+  display: grid;
+  gap: 5px;
+}
+
+.advanced-bet-label {
+  font-weight: 700;
+}
+
+.advanced-bet-copy small,
+.advanced-bet-payout {
+  color: var(--muted);
+}
+
+.advanced-bet-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.advanced-bet-controls select {
+  min-width: 132px;
+}
+
+.advanced-bets-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.advanced-bets-summary,
+.advanced-bets-active {
+  color: var(--muted);
+}
+
+.advanced-bets-active {
+  font-weight: 700;
+  color: color-mix(in srgb, var(--accent) 68%, white 32%);
+}
+
 .advanced-toggle {
   display: inline-flex;
   align-items: center;
@@ -2226,6 +2309,21 @@ button:hover {
 
   .advanced-auth-fields {
     grid-template-columns: 1fr;
+  }
+
+  .advanced-bet-row,
+  .advanced-bets-header,
+  .advanced-bets-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .advanced-bet-controls {
+    justify-content: stretch;
+  }
+
+  .advanced-bet-controls select {
+    width: 100%;
   }
 
   .initials-grid {

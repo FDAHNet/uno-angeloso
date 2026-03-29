@@ -13,6 +13,7 @@ const SESSION_SNAPSHOT_KEY = "smooth-2048-session-snapshot";
 const SAVE_SLOTS_KEY = "smooth-2048-save-slots";
 const ADVANCED_MODE_KEY = "smooth-2048-advanced-mode";
 const ADVANCED_PLAYER_AUTH_KEY = "smooth-2048-advanced-player-auth";
+const ADVANCED_BET_DRAFT_KEY = "smooth-2048-advanced-bet-draft";
 const GITHUB_OWNER = "FDAHNet";
 const GITHUB_REPO = "2048";
 const GLOBAL_RECORD_LABEL = "record";
@@ -27,6 +28,39 @@ const RECORD_CATEGORY_LABELS = {
   hole: "H.O.L.E.",
 };
 const DEFAULT_ADVANCED_CREDITS = 100;
+const ADVANCED_BET_STAKES = [0, 5, 10, 20, 50];
+const ADVANCED_BET_DEFINITIONS = [
+  {
+    id: "endReason",
+    label: "Final de partida",
+    description: "Adivina si termina por tu boton o por la maquina.",
+    options: [
+      { value: "user", label: "BY USER", payout: 2.1 },
+      { value: "machine", label: "BY MACHINE", payout: 1.8 },
+    ],
+  },
+  {
+    id: "maxTile",
+    label: "Ficha maxima",
+    description: "Predice la ficha mas alta conseguida al terminar.",
+    options: [
+      { value: "128", label: "128+", payout: 1.6 },
+      { value: "256", label: "256+", payout: 2.1 },
+      { value: "512", label: "512+", payout: 3.4 },
+      { value: "1024", label: "1024+", payout: 5.8 },
+    ],
+  },
+  {
+    id: "duration",
+    label: "Duracion",
+    description: "Acertar cuanto dura la partida en tiempo real.",
+    options: [
+      { value: "short", label: "Menos de 05:00", payout: 2.4 },
+      { value: "mid", label: "05:00 a 15:00", payout: 2.1 },
+      { value: "long", label: "Mas de 15:00", payout: 3.2 },
+    ],
+  },
+];
 
 const boardElement = document.getElementById("board");
 const fxLayer = document.getElementById("fx-layer");
@@ -72,6 +106,11 @@ const starfieldElement = document.getElementById("starfield");
 const attractOverlayElement = document.getElementById("attract-overlay");
 const startAttractButton = document.getElementById("start-attract-button");
 const themeSelect = document.getElementById("theme-select");
+const advancedBetsPanelElement = document.getElementById("advanced-bets-panel");
+const advancedBetsListElement = document.getElementById("advanced-bets-list");
+const advancedBetsSummaryElement = document.getElementById("advanced-bets-summary");
+const advancedBetsActiveElement = document.getElementById("advanced-bets-active");
+const clearAdvancedBetsButton = document.getElementById("clear-advanced-bets-button");
 const replayViewerElement = document.getElementById("replay-viewer");
 const replayMetaElement = document.getElementById("replay-meta");
 const replayEmptyElement = document.getElementById("replay-empty");
@@ -113,6 +152,9 @@ let pendingGlobalRecord = null;
 let advancedMode = localStorage.getItem(ADVANCED_MODE_KEY) === "true";
 let advancedPlayerAuth = loadAdvancedPlayerAuth();
 let advancedCredits = Number(advancedPlayerAuth?.credits ?? DEFAULT_ADVANCED_CREDITS);
+let advancedBetDraft = loadAdvancedBetDraft();
+let activeAdvancedRound = null;
+let advancedBetResultMessage = "";
 let journalEntries = [];
 let currentReplay = null;
 let recordsPanelOpen = false;
@@ -222,9 +264,123 @@ function saveAdvancedPlayerAuth(auth) {
   localStorage.setItem(ADVANCED_PLAYER_AUTH_KEY, JSON.stringify(auth));
 }
 
+function createDefaultAdvancedBetDraft() {
+  return Object.fromEntries(
+    ADVANCED_BET_DEFINITIONS.map((definition) => [
+      definition.id,
+      {
+        prediction: definition.options[0].value,
+        stake: 0,
+      },
+    ])
+  );
+}
+
+function loadAdvancedBetDraft() {
+  try {
+    const raw = localStorage.getItem(ADVANCED_BET_DRAFT_KEY);
+    if (!raw) return createDefaultAdvancedBetDraft();
+    const parsed = JSON.parse(raw);
+    const nextDraft = createDefaultAdvancedBetDraft();
+    ADVANCED_BET_DEFINITIONS.forEach((definition) => {
+      const entry = parsed?.[definition.id];
+      if (!entry) return;
+      const validPrediction = definition.options.some((option) => option.value === entry.prediction)
+        ? entry.prediction
+        : definition.options[0].value;
+      const validStake = ADVANCED_BET_STAKES.includes(Number(entry.stake)) ? Number(entry.stake) : 0;
+      nextDraft[definition.id] = { prediction: validPrediction, stake: validStake };
+    });
+    return nextDraft;
+  } catch {
+    return createDefaultAdvancedBetDraft();
+  }
+}
+
+function saveAdvancedBetDraft() {
+  localStorage.setItem(ADVANCED_BET_DRAFT_KEY, JSON.stringify(advancedBetDraft));
+}
+
+function cloneAdvancedRound(round) {
+  if (!round) return null;
+  return {
+    ...round,
+    wagers: Array.isArray(round.wagers) ? round.wagers.map((wager) => ({ ...wager })) : [],
+  };
+}
+
+function getAdvancedBetDefinition(id) {
+  return ADVANCED_BET_DEFINITIONS.find((definition) => definition.id === id) || null;
+}
+
+function getAdvancedBetOption(definitionId, value) {
+  const definition = getAdvancedBetDefinition(definitionId);
+  return definition?.options.find((option) => option.value === value) || null;
+}
+
+function buildAdvancedRoundFromDraft() {
+  const wagers = ADVANCED_BET_DEFINITIONS
+    .map((definition) => {
+      const draft = advancedBetDraft?.[definition.id];
+      const stake = Number(draft?.stake || 0);
+      const option = getAdvancedBetOption(definition.id, draft?.prediction);
+      if (!stake || !option) return null;
+      return {
+        id: definition.id,
+        label: definition.label,
+        prediction: option.value,
+        predictionLabel: option.label,
+        payout: option.payout,
+        stake,
+      };
+    })
+    .filter(Boolean);
+
+  if (!wagers.length) return null;
+
+  return {
+    mode: `${Number(boardSizeSelect.value)}x${Number(boardSizeSelect.value)}`,
+    alias: advancedPlayerAuth?.alias || "",
+    startedAt: new Date().toISOString(),
+    totalStake: wagers.reduce((sum, wager) => sum + wager.stake, 0),
+    wagers,
+    settled: false,
+    voidedReason: "",
+  };
+}
+
+function evaluateAdvancedBet(id, prediction, context) {
+  if (id === "endReason") {
+    return prediction === (context.reason === "BY USER" ? "user" : "machine");
+  }
+  if (id === "maxTile") {
+    const highestTile = Number(context.highestTile || 0);
+    return highestTile >= Number(prediction);
+  }
+  if (id === "duration") {
+    const elapsedMs = Number(context.elapsedMs || 0);
+    if (prediction === "short") return elapsedMs < 5 * 60 * 1000;
+    if (prediction === "mid") return elapsedMs >= 5 * 60 * 1000 && elapsedMs < 15 * 60 * 1000;
+    if (prediction === "long") return elapsedMs >= 15 * 60 * 1000;
+  }
+  return false;
+}
+
+function setAdvancedRoundVoided(reason) {
+  if (!activeAdvancedRound || activeAdvancedRound.settled) return;
+  activeAdvancedRound.voidedReason = reason;
+  renderAdvancedBetsPanel();
+}
+
+function describeAdvancedRound(round = activeAdvancedRound) {
+  if (!round?.wagers?.length) return "";
+  return round.wagers.map((wager) => `${wager.label}: ${wager.predictionLabel} (${wager.stake})`).join(" · ");
+}
+
 function updateAdvancedModeUI() {
   if (advancedModeToggle) advancedModeToggle.checked = advancedMode;
   creditsCardElement?.classList.toggle("hidden", !advancedMode);
+  advancedBetsPanelElement?.classList.toggle("hidden", !advancedMode);
   if (creditsElement) {
     creditsElement.textContent = String(Math.max(0, Math.trunc(advancedCredits)));
     applyScoreSizing(creditsElement, advancedCredits);
@@ -233,6 +389,92 @@ function updateAdvancedModeUI() {
     creditsPlayerElement.textContent = advancedMode
       ? (advancedPlayerAuth?.alias || "Alias pendiente")
       : "";
+  }
+  renderAdvancedBetsPanel();
+}
+
+function renderAdvancedBetsPanel() {
+  if (!advancedBetsListElement || !advancedBetsSummaryElement || !advancedBetsActiveElement) return;
+  if (!advancedMode) {
+    advancedBetsListElement.innerHTML = "";
+    advancedBetsSummaryElement.textContent = "";
+    advancedBetsActiveElement.textContent = "";
+    return;
+  }
+
+  advancedBetsListElement.innerHTML = "";
+  ADVANCED_BET_DEFINITIONS.forEach((definition) => {
+    const draft = advancedBetDraft?.[definition.id] || { prediction: definition.options[0].value, stake: 0 };
+    const option = getAdvancedBetOption(definition.id, draft.prediction) || definition.options[0];
+
+    const row = document.createElement("div");
+    row.className = "advanced-bet-row";
+
+    const copy = document.createElement("div");
+    copy.className = "advanced-bet-copy";
+
+    const label = document.createElement("span");
+    label.className = "advanced-bet-label";
+    label.textContent = definition.label;
+
+    const desc = document.createElement("small");
+    desc.textContent = definition.description;
+
+    const payout = document.createElement("small");
+    payout.className = "advanced-bet-payout";
+    payout.textContent = `Premio x${option.payout.toFixed(1)} si aciertas`;
+
+    copy.append(label, desc, payout);
+
+    const controls = document.createElement("div");
+    controls.className = "advanced-bet-controls";
+
+    const predictionSelect = document.createElement("select");
+    definition.options.forEach((entry) => {
+      const optionElement = document.createElement("option");
+      optionElement.value = entry.value;
+      optionElement.textContent = entry.label;
+      if (entry.value === draft.prediction) optionElement.selected = true;
+      predictionSelect.appendChild(optionElement);
+    });
+    predictionSelect.addEventListener("change", () => {
+      advancedBetDraft[definition.id].prediction = predictionSelect.value;
+      saveAdvancedBetDraft();
+      renderAdvancedBetsPanel();
+    });
+
+    const stakeSelect = document.createElement("select");
+    ADVANCED_BET_STAKES.forEach((stake) => {
+      const optionElement = document.createElement("option");
+      optionElement.value = String(stake);
+      optionElement.textContent = stake === 0 ? "Sin apuesta" : `${stake} creditos`;
+      if (stake === Number(draft.stake || 0)) optionElement.selected = true;
+      stakeSelect.appendChild(optionElement);
+    });
+    stakeSelect.addEventListener("change", () => {
+      advancedBetDraft[definition.id].stake = Number(stakeSelect.value);
+      saveAdvancedBetDraft();
+      renderAdvancedBetsPanel();
+    });
+
+    controls.append(predictionSelect, stakeSelect);
+    row.append(copy, controls);
+    advancedBetsListElement.appendChild(row);
+  });
+
+  const pendingRound = buildAdvancedRoundFromDraft();
+  if (!pendingRound) {
+    advancedBetsSummaryElement.textContent = "Sin apuestas preparadas para la siguiente partida.";
+  } else {
+    advancedBetsSummaryElement.textContent = `Se descontaran ${pendingRound.totalStake} creditos al empezar la siguiente partida.`;
+  }
+
+  if (activeAdvancedRound?.voidedReason) {
+    advancedBetsActiveElement.textContent = `Ronda anulada: ${activeAdvancedRound.voidedReason}`;
+  } else if (activeAdvancedRound?.wagers?.length && !activeAdvancedRound.settled) {
+    advancedBetsActiveElement.textContent = `Apuestas activas: ${describeAdvancedRound(activeAdvancedRound)}`;
+  } else {
+    advancedBetsActiveElement.textContent = advancedBetResultMessage || "";
   }
 }
 
@@ -314,6 +556,49 @@ async function syncAdvancedCredits(nextCredits) {
   saveAdvancedPlayerAuth(advancedPlayerAuth);
   updateAdvancedModeUI();
   return body;
+}
+
+async function settleAdvancedRound(reason) {
+  if (!activeAdvancedRound || activeAdvancedRound.settled) return;
+
+  const round = cloneAdvancedRound(activeAdvancedRound);
+  round.settled = true;
+  activeAdvancedRound = round;
+
+  if (round.voidedReason) {
+    try {
+      await syncAdvancedCredits(advancedCredits + round.totalStake);
+      advancedBetResultMessage = `Apuestas anuladas. Devueltos ${round.totalStake} creditos.`;
+    } catch (error) {
+      advancedBetResultMessage = `Apuestas anuladas, pero no pude devolver los creditos: ${error.message}`;
+    }
+    renderAdvancedBetsPanel();
+    persistSessionSnapshot();
+    return;
+  }
+
+  const context = {
+    reason,
+    elapsedMs: getElapsedMs(),
+    highestTile: getHighestTileValue(),
+  };
+
+  const winners = round.wagers.filter((wager) => evaluateAdvancedBet(wager.id, wager.prediction, context));
+  const payout = winners.reduce((sum, wager) => sum + Math.round(wager.stake * wager.payout), 0);
+
+  try {
+    if (payout > 0) {
+      await syncAdvancedCredits(advancedCredits + payout);
+      advancedBetResultMessage = `Apuestas cobradas: +${payout} creditos con ${winners.length} acierto${winners.length === 1 ? "" : "s"}.`;
+    } else {
+      advancedBetResultMessage = `Apuestas perdidas. Sin aciertos en esta partida.`;
+    }
+  } catch (error) {
+    advancedBetResultMessage = `No pude liquidar las apuestas: ${error.message}`;
+  }
+
+  renderAdvancedBetsPanel();
+  persistSessionSnapshot();
 }
 
 async function ensureAdvancedPlayer() {
@@ -582,6 +867,7 @@ function endGameByMachine() {
   render();
   renderGameTimer();
   setGameOverOverlay(true, "BY MACHINE");
+  void settleAdvancedRound("BY MACHINE");
   maybePersistCurrentScore();
   setStatus("No quedan movimientos. Pulsa Nueva partida.");
 }
@@ -638,6 +924,10 @@ function persistSessionSnapshot() {
     gameTimerElapsedMs: getElapsedMs(),
     globalRecordFanfarePlayed,
     recordLeaderActive: bestScoreCardElement?.classList.contains("record-leader") || false,
+    advancedMode,
+    advancedCredits,
+    activeAdvancedRound: cloneAdvancedRound(activeAdvancedRound),
+    advancedBetResultMessage,
     paused: gamePaused,
     statusText: statusElement.textContent,
     initialsEntry: initialsEntryState.active ? {
@@ -760,6 +1050,10 @@ function buildPlayableSnapshot() {
     gameTimerElapsedMs: getElapsedMs(),
     globalRecordFanfarePlayed,
     recordLeaderActive: bestScoreCardElement?.classList.contains("record-leader") || false,
+    advancedMode,
+    advancedCredits,
+    activeAdvancedRound: cloneAdvancedRound(activeAdvancedRound),
+    advancedBetResultMessage,
     statusText: statusElement.textContent,
   };
 }
@@ -799,6 +1093,10 @@ function restorePlayableSnapshot(snapshot) {
   currentReplay = decodeReplayPayload(snapshot.currentReplay) || buildCheckpointReplayFromCurrentBoard();
   journalEntries = cloneJournalEntries(snapshot.journalEntries || []);
   moveSequence = Number(snapshot.moveSequence || 0);
+  advancedMode = Boolean(snapshot.advancedMode);
+  advancedCredits = Number(snapshot.advancedCredits ?? advancedCredits);
+  activeAdvancedRound = cloneAdvancedRound(snapshot.activeAdvancedRound);
+  advancedBetResultMessage = String(snapshot.advancedBetResultMessage || "");
   moveHistory = [];
   globalRecordFanfarePlayed = Boolean(snapshot.globalRecordFanfarePlayed);
   pausedElapsedMs = Number(snapshot.gameTimerElapsedMs || 0);
@@ -814,6 +1112,7 @@ function restorePlayableSnapshot(snapshot) {
   render();
   renderJournal();
   renderUndoHistory();
+  updateAdvancedModeUI();
   renderRecords();
   renderGameTimer();
   setPauseOverlay(true);
@@ -1036,7 +1335,7 @@ function resetFlags() {
 }
 
 function startGame(options = {}) {
-  const { demo = false } = options;
+  const { demo = false, advancedRound = null } = options;
   if (initialsEntryState.active) {
     closeInitialsEntry({ discard: true });
   }
@@ -1059,6 +1358,8 @@ function startGame(options = {}) {
   journalEntries = [];
   currentReplay = null;
   holeRunUsed = false;
+  activeAdvancedRound = demo ? null : cloneAdvancedRound(advancedRound);
+  advancedBetResultMessage = "";
   moveHistory = [];
   moveSequence = 0;
   globalRecordFanfarePlayed = false;
@@ -1082,6 +1383,7 @@ function startGame(options = {}) {
     };
   }
   render();
+  updateAdvancedModeUI();
   renderJournal();
   renderUndoHistory();
   renderRecords();
@@ -1121,6 +1423,10 @@ function restoreSessionSnapshot() {
     currentReplay = decodeReplayPayload(snapshot.currentReplay);
     journalEntries = cloneJournalEntries(snapshot.journalEntries || []);
     moveSequence = Number(snapshot.moveSequence || 0);
+    advancedMode = Boolean(snapshot.advancedMode ?? advancedMode);
+    advancedCredits = Number(snapshot.advancedCredits ?? advancedCredits);
+    activeAdvancedRound = cloneAdvancedRound(snapshot.activeAdvancedRound);
+    advancedBetResultMessage = String(snapshot.advancedBetResultMessage || "");
     moveHistory = [];
     globalRecordFanfarePlayed = Boolean(snapshot.globalRecordFanfarePlayed);
     pausedElapsedMs = Number(snapshot.gameTimerElapsedMs || 0);
@@ -1136,6 +1442,7 @@ function restoreSessionSnapshot() {
     render();
     renderJournal();
     renderUndoHistory();
+    updateAdvancedModeUI();
     renderRecords();
     renderGameTimer();
     setPauseOverlay(true);
@@ -1187,6 +1494,12 @@ function setStatus(message) {
 
 async function handleAdvancedModeToggle() {
   advancedMode = Boolean(advancedModeToggle?.checked);
+  if (!advancedMode && activeAdvancedRound?.wagers?.length && !activeAdvancedRound.settled) {
+    advancedMode = true;
+    if (advancedModeToggle) advancedModeToggle.checked = true;
+    setStatus("No puedes desactivar Modo Avanzado con una ronda activa.");
+    return;
+  }
   localStorage.setItem(ADVANCED_MODE_KEY, String(advancedMode));
   updateAdvancedModeUI();
 
@@ -1766,12 +2079,13 @@ function scheduleHoleMove() {
 
 function startHoleMode() {
   if (!attractDismissed) {
-    startActualGame();
+    void startFreshGame();
   }
   if (demoMode || replayMode || initialsEntryState.active || gameState.over) return;
   stopDemoMode();
   holeMode = true;
   holeRunUsed = true;
+  setAdvancedRoundVoided("H.O.L.E.");
   if (currentReplay) currentReplay.category = "hole";
   holeSequenceProgress = 0;
   holePreferredCorner = determineHolePreferredCorner(boardValuesFromState());
@@ -3168,7 +3482,36 @@ function startActualGame() {
   stopDemoMode();
   closeInitialsEntry({ discard: true });
   attractOverlayElement.classList.add("hidden");
-  startGame();
+  void startFreshGame();
+}
+
+async function prepareAdvancedRoundForNewGame() {
+  if (!advancedMode) return null;
+  const ready = await ensureAdvancedPlayer();
+  if (!ready) {
+    setStatus("Entra con alias y PIN para usar el modo avanzado.");
+    return false;
+  }
+
+  const nextRound = buildAdvancedRoundFromDraft();
+  if (!nextRound) return null;
+
+  if (advancedCredits < nextRound.totalStake) {
+    setStatus(`No tienes creditos suficientes. Necesitas ${nextRound.totalStake}.`);
+    return false;
+  }
+
+  await syncAdvancedCredits(advancedCredits - nextRound.totalStake);
+  return nextRound;
+}
+
+async function startFreshGame() {
+  const preparedRound = await prepareAdvancedRoundForNewGame();
+  if (preparedRound === false) return;
+  startGame({ advancedRound: preparedRound || null });
+  if (preparedRound?.totalStake) {
+    setStatus(`Apuestas activadas por ${preparedRound.totalStake} creditos.`);
+  }
 }
 
 function commitCurrentLetter() {
@@ -3216,6 +3559,7 @@ function finishGame() {
   gameState.over = true;
   renderGameTimer();
   setGameOverOverlay(true, "BY USER");
+  void settleAdvancedRound("BY USER");
   maybePersistCurrentScore();
   if (!initialsEntryState.active) setStatus("Partida finalizada.");
 }
@@ -3827,14 +4171,14 @@ restartButton.addEventListener("click", () => {
   if (audioEnabled) void unlockAudio();
   attractDismissed = true;
   attractOverlayElement.classList.add("hidden");
-  startGame();
+  void startFreshGame();
 });
 boardSizeSelect.addEventListener("click", () => { if (audioEnabled) void unlockAudio(); });
 boardSizeSelect.addEventListener("change", () => {
   if (audioEnabled) void unlockAudio();
   attractDismissed = true;
   attractOverlayElement.classList.add("hidden");
-  startGame();
+  void startFreshGame();
 });
 finishButton.addEventListener("click", finishGame);
 audioToggleButton.addEventListener("click", toggleAudioEnabled);
@@ -3904,6 +4248,12 @@ advancedAuthCloseButton?.addEventListener("click", () => {
     localStorage.setItem(ADVANCED_MODE_KEY, "false");
     updateAdvancedModeUI();
   }
+});
+clearAdvancedBetsButton?.addEventListener("click", () => {
+  advancedBetDraft = createDefaultAdvancedBetDraft();
+  saveAdvancedBetDraft();
+  renderAdvancedBetsPanel();
+  setStatus("Apuestas preparadas limpiadas.");
 });
 document.querySelectorAll(".records-mode-toggle").forEach((button) => {
   button.addEventListener("click", () => setExpandedRecordsMode(button.dataset.mode));
