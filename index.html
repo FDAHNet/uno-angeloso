@@ -37,6 +37,11 @@
           <span>Puntuaci&oacute;n</span>
           <strong id="score">0</strong>
         </div>
+        <div id="credits-card" class="score-card credits-card hidden">
+          <span>Creditos</span>
+          <strong id="credits">100</strong>
+          <small id="credits-player" class="credits-player">Alias pendiente</small>
+        </div>
         <div id="best-score-card" class="score-card best-score-card">
           <span>Record</span>
           <strong id="best-score">0</strong>
@@ -64,6 +69,10 @@
             <option value="6">6 x 6</option>
             <option value="8">8 x 8</option>
           </select>
+        </label>
+        <label class="advanced-toggle" for="advanced-mode-toggle">
+          <input id="advanced-mode-toggle" type="checkbox">
+          <span>Modo Avanzado</span>
         </label>
         <button id="restart-button" type="button">Nueva partida</button>
       </div>
@@ -191,6 +200,27 @@
             <span id="initials-timer" class="initials-timer">01:00</span>
           </div>
           <p class="initials-help">Mueve el cursor por el alfabeto con las flechas y marca la letra como en una recreativa clasica.</p>
+        </div>
+      </section>
+      <section id="advanced-auth-entry" class="advanced-auth-entry hidden" aria-labelledby="advanced-auth-title">
+        <div class="advanced-auth-card">
+          <p class="initials-eyebrow">Modo avanzado</p>
+          <h3 id="advanced-auth-title">Alias y PIN</h3>
+          <div class="advanced-auth-fields">
+            <label class="advanced-auth-field">
+              <span>Alias</span>
+              <input id="advanced-alias-input" type="text" maxlength="16" autocomplete="username" placeholder="Tu alias">
+            </label>
+            <label class="advanced-auth-field">
+              <span>PIN (4 cifras)</span>
+              <input id="advanced-pin-input" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password" placeholder="0000">
+            </label>
+          </div>
+          <div class="advanced-auth-actions">
+            <button id="advanced-auth-submit" type="button">Entrar / Crear</button>
+            <button id="advanced-auth-close" type="button" class="danger-button">Cerrar</button>
+          </div>
+          <p class="advanced-auth-help">Si el alias no existe, se crea con 100 creditos. Si existe, el PIN debe coincidir para recuperar tu saldo.</p>
         </div>
       </section>
       <section id="records-panel" class="records-panel records-panel-collapsed" aria-labelledby="records-title">

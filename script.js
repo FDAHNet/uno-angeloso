@@ -11,6 +11,8 @@ const AUDIO_ENABLED_KEY = "smooth-2048-audio-enabled";
 const THEME_KEY = "smooth-2048-theme";
 const SESSION_SNAPSHOT_KEY = "smooth-2048-session-snapshot";
 const SAVE_SLOTS_KEY = "smooth-2048-save-slots";
+const ADVANCED_MODE_KEY = "smooth-2048-advanced-mode";
+const ADVANCED_PLAYER_AUTH_KEY = "smooth-2048-advanced-player-auth";
 const GITHUB_OWNER = "FDAHNet";
 const GITHUB_REPO = "2048";
 const GLOBAL_RECORD_LABEL = "record";
@@ -24,10 +26,14 @@ const RECORD_CATEGORY_LABELS = {
   normal: "Normal",
   hole: "H.O.L.E.",
 };
+const DEFAULT_ADVANCED_CREDITS = 100;
 
 const boardElement = document.getElementById("board");
 const fxLayer = document.getElementById("fx-layer");
 const scoreElement = document.getElementById("score");
+const creditsCardElement = document.getElementById("credits-card");
+const creditsElement = document.getElementById("credits");
+const creditsPlayerElement = document.getElementById("credits-player");
 const bestScoreElement = document.getElementById("best-score");
 const bestScoreCardElement = document.getElementById("best-score-card");
 const statusElement = document.getElementById("status");
@@ -48,6 +54,7 @@ const closeSaveSlotsButton = document.getElementById("close-save-slots-button");
 const saveSlotsListElement = document.getElementById("save-slots-list");
 const replayIndicatorElement = document.getElementById("replay-indicator");
 const boardSizeSelect = document.getElementById("board-size");
+const advancedModeToggle = document.getElementById("advanced-mode-toggle");
 const recordsPanelElement = document.getElementById("records-panel");
 const toggleRecordsButton = document.getElementById("toggle-records-button");
 const globalRecordsGroupsElement = document.getElementById("global-records-groups");
@@ -85,6 +92,11 @@ const selectLetterButton = document.getElementById("select-letter-button");
 const deleteLetterButton = document.getElementById("delete-letter-button");
 const closeInitialsButton = document.getElementById("close-initials-button");
 const initialsTimerElement = document.getElementById("initials-timer");
+const advancedAuthEntryElement = document.getElementById("advanced-auth-entry");
+const advancedAliasInput = document.getElementById("advanced-alias-input");
+const advancedPinInput = document.getElementById("advanced-pin-input");
+const advancedAuthSubmitButton = document.getElementById("advanced-auth-submit");
+const advancedAuthCloseButton = document.getElementById("advanced-auth-close");
 
 let boardSize = Number(boardSizeSelect.value);
 let nextTileId = 1;
@@ -98,6 +110,9 @@ let audioUnlocked = false;
 let audioEnabled = localStorage.getItem(AUDIO_ENABLED_KEY) === "true";
 let recordSaved = false;
 let pendingGlobalRecord = null;
+let advancedMode = localStorage.getItem(ADVANCED_MODE_KEY) === "true";
+let advancedPlayerAuth = loadAdvancedPlayerAuth();
+let advancedCredits = Number(advancedPlayerAuth?.credits ?? DEFAULT_ADVANCED_CREDITS);
 let journalEntries = [];
 let currentReplay = null;
 let recordsPanelOpen = false;
@@ -181,6 +196,145 @@ function updateAudioToggleButton() {
   audioToggleButton.textContent = audioEnabled ? "🔊 SONIDO ON" : "🔈 SONIDO OFF";
   audioToggleButton.classList.toggle("is-on", audioEnabled);
   audioToggleButton.setAttribute("aria-pressed", String(audioEnabled));
+}
+
+function loadAdvancedPlayerAuth() {
+  try {
+    const raw = localStorage.getItem(ADVANCED_PLAYER_AUTH_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed?.alias || !parsed?.pinHash) return null;
+    return {
+      alias: String(parsed.alias),
+      pinHash: String(parsed.pinHash),
+      credits: Number(parsed.credits ?? DEFAULT_ADVANCED_CREDITS),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveAdvancedPlayerAuth(auth) {
+  if (!auth) {
+    localStorage.removeItem(ADVANCED_PLAYER_AUTH_KEY);
+    return;
+  }
+  localStorage.setItem(ADVANCED_PLAYER_AUTH_KEY, JSON.stringify(auth));
+}
+
+function updateAdvancedModeUI() {
+  if (advancedModeToggle) advancedModeToggle.checked = advancedMode;
+  creditsCardElement?.classList.toggle("hidden", !advancedMode);
+  if (creditsElement) {
+    creditsElement.textContent = String(Math.max(0, Math.trunc(advancedCredits)));
+    applyScoreSizing(creditsElement, advancedCredits);
+  }
+  if (creditsPlayerElement) {
+    creditsPlayerElement.textContent = advancedMode
+      ? (advancedPlayerAuth?.alias || "Alias pendiente")
+      : "";
+  }
+}
+
+function openAdvancedAuthEntry() {
+  advancedAuthEntryElement?.classList.remove("hidden");
+  if (advancedAliasInput && !advancedAliasInput.value) {
+    advancedAliasInput.value = advancedPlayerAuth?.alias || "";
+  }
+  advancedPinInput.value = "";
+}
+
+function closeAdvancedAuthEntry() {
+  advancedAuthEntryElement?.classList.add("hidden");
+  if (advancedPinInput) advancedPinInput.value = "";
+}
+
+function normalizeAdvancedAlias(value) {
+  return (value || "").trim().replace(/\s+/g, "_").slice(0, 16).toUpperCase();
+}
+
+function isValidAdvancedAlias(value) {
+  return /^[A-Za-z0-9_-]{3,16}$/.test(value);
+}
+
+function isValidAdvancedPin(value) {
+  return /^[0-9]{4}$/.test(value);
+}
+
+async function sha256Hex(value) {
+  const hashBuffer = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(hashBuffer), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function postWorkerJson(path, payload) {
+  const response = await fetch(`${WORKER_API_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(body.error || `Worker ${response.status}`);
+  }
+  return body;
+}
+
+async function syncAdvancedPlayer(alias, pinHash) {
+  const body = await postWorkerJson("/player/access", { alias, pinHash });
+  advancedPlayerAuth = {
+    alias: body.alias,
+    pinHash,
+    credits: Number(body.credits ?? DEFAULT_ADVANCED_CREDITS),
+  };
+  advancedCredits = advancedPlayerAuth.credits;
+  saveAdvancedPlayerAuth(advancedPlayerAuth);
+  updateAdvancedModeUI();
+  return body;
+}
+
+async function syncAdvancedCredits(nextCredits) {
+  if (!advancedPlayerAuth?.alias || !advancedPlayerAuth?.pinHash) {
+    throw new Error("Jugador avanzado no autenticado");
+  }
+
+  const body = await postWorkerJson("/player/credits", {
+    alias: advancedPlayerAuth.alias,
+    pinHash: advancedPlayerAuth.pinHash,
+    credits: Math.max(0, Math.trunc(nextCredits)),
+  });
+
+  advancedCredits = Number(body.credits ?? 0);
+  advancedPlayerAuth = {
+    ...advancedPlayerAuth,
+    credits: advancedCredits,
+  };
+  saveAdvancedPlayerAuth(advancedPlayerAuth);
+  updateAdvancedModeUI();
+  return body;
+}
+
+async function ensureAdvancedPlayer() {
+  if (!advancedMode) return false;
+  if (!advancedPlayerAuth?.alias || !advancedPlayerAuth?.pinHash) {
+    openAdvancedAuthEntry();
+    return false;
+  }
+
+  try {
+    await syncAdvancedPlayer(advancedPlayerAuth.alias, advancedPlayerAuth.pinHash);
+    return true;
+  } catch (error) {
+    saveAdvancedPlayerAuth(null);
+    advancedPlayerAuth = null;
+    advancedCredits = DEFAULT_ADVANCED_CREDITS;
+    updateAdvancedModeUI();
+    openAdvancedAuthEntry();
+    setStatus(`Modo avanzado: ${error.message}`);
+    return false;
+  }
 }
 
 function getBoardFrameElement() {
@@ -1029,6 +1183,56 @@ function setRecordsPanelOpen(nextOpen) {
 
 function setStatus(message) {
   statusElement.textContent = message;
+}
+
+async function handleAdvancedModeToggle() {
+  advancedMode = Boolean(advancedModeToggle?.checked);
+  localStorage.setItem(ADVANCED_MODE_KEY, String(advancedMode));
+  updateAdvancedModeUI();
+
+  if (!advancedMode) {
+    closeAdvancedAuthEntry();
+    setStatus("Modo avanzado desactivado.");
+    return;
+  }
+
+  const ready = await ensureAdvancedPlayer();
+  if (ready) {
+    setStatus(`Modo avanzado listo para ${advancedPlayerAuth.alias}.`);
+  }
+}
+
+async function submitAdvancedAuth() {
+  const alias = normalizeAdvancedAlias(advancedAliasInput?.value || "");
+  const pin = (advancedPinInput?.value || "").trim();
+
+  if (!isValidAdvancedAlias(alias)) {
+    setStatus("Alias invalido. Usa 3-16 caracteres, letras, numeros, _ o -.");
+    return;
+  }
+  if (!isValidAdvancedPin(pin)) {
+    setStatus("El PIN debe tener 4 cifras.");
+    return;
+  }
+
+  advancedAuthSubmitButton.disabled = true;
+  setStatus("Conectando modo avanzado...");
+
+  try {
+    const pinHash = await sha256Hex(pin);
+    const result = await syncAdvancedPlayer(alias, pinHash);
+    closeAdvancedAuthEntry();
+    setStatus(result.created ? `Jugador ${alias} creado con ${result.credits} creditos.` : `Jugador ${alias} conectado.`);
+  } catch (error) {
+    setStatus(`Modo avanzado: ${error.message}`);
+  } finally {
+    advancedAuthSubmitButton.disabled = false;
+  }
+}
+
+async function handleAdvancedAuthSubmitEvent(event) {
+  event?.preventDefault?.();
+  await submitAdvancedAuth();
 }
 
 function boardValuesFromState(state = gameState) {
@@ -3677,6 +3881,30 @@ replayLastButton.addEventListener("click", () => {
   setReplayToIndex(replaySession.replay.turns.length);
 });
 toggleRecordsButton.addEventListener("click", () => setRecordsPanelOpen(!recordsPanelOpen));
+advancedModeToggle?.addEventListener("change", () => {
+  void handleAdvancedModeToggle();
+});
+advancedAuthSubmitButton?.addEventListener("click", () => {
+  void handleAdvancedAuthSubmitEvent();
+});
+advancedAliasInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    void handleAdvancedAuthSubmitEvent(event);
+  }
+});
+advancedPinInput?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    void handleAdvancedAuthSubmitEvent(event);
+  }
+});
+advancedAuthCloseButton?.addEventListener("click", () => {
+  closeAdvancedAuthEntry();
+  if (!advancedPlayerAuth) {
+    advancedMode = false;
+    localStorage.setItem(ADVANCED_MODE_KEY, "false");
+    updateAdvancedModeUI();
+  }
+});
 document.querySelectorAll(".records-mode-toggle").forEach((button) => {
   button.addEventListener("click", () => setExpandedRecordsMode(button.dataset.mode));
 });
@@ -3691,10 +3919,14 @@ window.addEventListener("resize", render);
 buildGrid();
 applyTheme(theme);
 updateAudioToggleButton();
+updateAdvancedModeUI();
 updatePauseButton();
 setRecordsPanelOpen(false);
 closeInitialsEntry();
 renderSaveSlots();
+if (advancedMode) {
+  void ensureAdvancedPlayer();
+}
 if (!restoreSessionSnapshot()) {
   startAttractMode();
 }

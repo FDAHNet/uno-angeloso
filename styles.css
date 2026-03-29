@@ -390,6 +390,24 @@ h1 {
   letter-spacing: -0.08em;
 }
 
+.credits-card strong {
+  color: #ffe58f;
+  text-shadow: 0 0 12px rgba(255, 214, 98, 0.18);
+}
+
+.credits-player {
+  display: block;
+  margin-top: 8px;
+  min-height: 1.2em;
+  color: color-mix(in srgb, var(--accent) 62%, white 38%);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .controls {
   margin-top: 18px;
   padding: 18px 22px;
@@ -404,6 +422,29 @@ h1 {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
+}
+
+.advanced-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  user-select: none;
+}
+
+.advanced-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: color-mix(in srgb, var(--accent) 82%, white 18%);
+}
+
+.advanced-toggle span {
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .size-picker {
@@ -1505,6 +1546,7 @@ button:hover {
 }
 
 .initials-entry,
+.advanced-auth-entry,
 .replay-viewer,
 .records-panel {
   margin-top: 18px;
@@ -1514,6 +1556,56 @@ button:hover {
   padding: 20px;
   border-radius: 24px;
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.26);
+}
+
+.advanced-auth-card {
+  padding: 20px;
+  border-radius: 24px;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.26);
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.08));
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.advanced-auth-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.advanced-auth-field {
+  display: grid;
+  gap: 8px;
+}
+
+.advanced-auth-field span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.advanced-auth-field input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+}
+
+.advanced-auth-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.advanced-auth-help {
+  margin: 14px 0 0;
+  color: var(--muted);
 }
 
 .initials-eyebrow {
@@ -2130,6 +2222,10 @@ button:hover {
   .initials-actions button,
   .replay-control-button {
     width: 100%;
+  }
+
+  .advanced-auth-fields {
+    grid-template-columns: 1fr;
   }
 
   .initials-grid {

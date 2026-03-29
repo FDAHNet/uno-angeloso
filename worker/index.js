@@ -1,6 +1,7 @@
 const GITHUB_OWNER = 'FDAHNet';
 const GITHUB_REPO = '2048';
 const GITHUB_LABEL = 'record';
+const PLAYER_LABEL = 'player-account';
 const DEFAULT_ALLOWED_ORIGIN = 'https://fdahnet.github.io';
 const DEFAULT_ALLOWED_REFERER_PREFIX = 'https://fdahnet.github.io';
 const ALLOWED_MODES = new Set(['4x4', '5x5', '6x6', '8x8']);
@@ -12,9 +13,12 @@ const MAX_REPLAY_CHUNK = 56_000;
 const MAX_REPLAY_PARTS = 180;
 const MAX_SCORE = 1_000_000_000_000;
 const MAX_REPLAY_TURNS = 600_000;
+const DEFAULT_PLAYER_CREDITS = 100;
+const MAX_CREDITS = 1_000_000;
 
 export default {
   async fetch(request, env) {
+    const url = new URL(request.url);
     const allowedOrigin = env.ALLOWED_ORIGIN || DEFAULT_ALLOWED_ORIGIN;
     const allowedRefererPrefix = env.ALLOWED_REFERER_PREFIX || DEFAULT_ALLOWED_REFERER_PREFIX;
     const origin = request.headers.get('Origin') || '';
@@ -63,12 +67,20 @@ export default {
       return json({ error: 'Invalid JSON' }, 400, corsHeaders);
     }
 
-    const validation = validatePayload(payload);
-    if (validation) {
-      return json({ error: validation }, 400, corsHeaders);
-    }
-
     try {
+      if (url.pathname === '/player/access') {
+        return await handlePlayerAccess(payload, env, corsHeaders);
+      }
+
+      if (url.pathname === '/player/credits') {
+        return await handlePlayerCredits(payload, env, corsHeaders);
+      }
+
+      const validation = validatePayload(payload);
+      if (validation) {
+        return json({ error: validation }, 400, corsHeaders);
+      }
+
       const title = `[Record] ${payload.initials} - ${payload.score} - ${payload.mode} - ${payload.category.toUpperCase()}`;
       const replayJson = JSON.stringify(payload.replay);
       const baseLines = [
@@ -96,7 +108,7 @@ export default {
       let issue;
 
       if (inlineBody.length <= MAX_ISSUE_BODY) {
-        issue = await createIssue(env, title, inlineBody);
+        issue = await createIssue(env, title, inlineBody, [GITHUB_LABEL]);
       } else {
         const chunks = chunkString(replayJson, MAX_REPLAY_CHUNK);
         if (chunks.length > MAX_REPLAY_PARTS) {
@@ -112,7 +124,7 @@ export default {
           'Replay JSON is stored across issue comments.',
         ].join('\n');
 
-        issue = await createIssue(env, title, issueBody);
+        issue = await createIssue(env, title, issueBody, [GITHUB_LABEL]);
 
         for (let index = 0; index < chunks.length; index += 1) {
           const commentBody = [
@@ -202,6 +214,103 @@ function validateReplay(replay, mode) {
   return '';
 }
 
+function validatePlayerAccessPayload(payload) {
+  if (!payload || typeof payload !== 'object') return 'Payload is required';
+  if (!/^[A-Za-z0-9_-]{3,16}$/.test(payload.alias || '')) return 'Alias is invalid';
+  if (!/^[a-f0-9]{64}$/i.test(payload.pinHash || '')) return 'PIN hash is invalid';
+  return '';
+}
+
+function validateCreditsPayload(payload) {
+  const validation = validatePlayerAccessPayload(payload);
+  if (validation) return validation;
+  const credits = Number(payload.credits);
+  if (!Number.isFinite(credits) || credits < 0 || credits > MAX_CREDITS) return 'Credits are invalid';
+  return '';
+}
+
+async function handlePlayerAccess(payload, env, corsHeaders) {
+  const validation = validatePlayerAccessPayload(payload);
+  if (validation) return json({ error: validation }, 400, corsHeaders);
+  const alias = String(payload.alias).toUpperCase();
+
+  const issue = await findPlayerIssueByAlias(env, alias);
+  if (!issue) {
+    const createdAt = new Date().toISOString();
+    const body = buildPlayerIssueBody(alias, payload.pinHash, DEFAULT_PLAYER_CREDITS, createdAt, createdAt);
+    const created = await createIssue(env, `[Player] ${alias}`, body, [PLAYER_LABEL]);
+    return json({ ok: true, created: true, alias, credits: DEFAULT_PLAYER_CREDITS, issueNumber: created.number }, 200, corsHeaders);
+  }
+
+  const parsed = parsePlayerIssue(issue);
+  if (!parsed || parsed.pinHash.toLowerCase() !== payload.pinHash.toLowerCase()) {
+    return json({ error: 'Alias o PIN incorrecto' }, 403, corsHeaders);
+  }
+
+  return json({ ok: true, created: false, alias: parsed.alias, credits: parsed.credits, issueNumber: issue.number }, 200, corsHeaders);
+}
+
+async function handlePlayerCredits(payload, env, corsHeaders) {
+  const validation = validateCreditsPayload(payload);
+  if (validation) return json({ error: validation }, 400, corsHeaders);
+  const alias = String(payload.alias).toUpperCase();
+
+  const issue = await findPlayerIssueByAlias(env, alias);
+  if (!issue) return json({ error: 'Jugador no encontrado' }, 404, corsHeaders);
+
+  const parsed = parsePlayerIssue(issue);
+  if (!parsed || parsed.pinHash.toLowerCase() !== payload.pinHash.toLowerCase()) {
+    return json({ error: 'Alias o PIN incorrecto' }, 403, corsHeaders);
+  }
+
+  const credits = Math.max(0, Math.min(MAX_CREDITS, Math.trunc(Number(payload.credits))));
+  const body = buildPlayerIssueBody(parsed.alias, parsed.pinHash, credits, parsed.createdAt, new Date().toISOString());
+  await updateIssue(env, issue.number, { body });
+  return json({ ok: true, alias: parsed.alias, credits }, 200, corsHeaders);
+}
+
+async function findPlayerIssueByAlias(env, alias) {
+  const normalizedAlias = String(alias).toUpperCase();
+  for (let page = 1; page <= 10; page += 1) {
+    const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues?state=all&labels=${PLAYER_LABEL}&per_page=100&page=${page}`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/vnd.github+json' },
+    });
+    const issues = await response.json();
+    const issue = issues.find((item) => !item.pull_request && item.title === `[Player] ${normalizedAlias}`);
+    if (issue) return issue;
+    if (issues.length < 100) break;
+  }
+  return null;
+}
+
+function buildPlayerIssueBody(alias, pinHash, credits, createdAt, updatedAt) {
+  return [
+    'Advanced mode player account',
+    '',
+    `Alias: ${alias}`,
+    `PinHash: ${pinHash}`,
+    `Credits: ${credits}`,
+    `CreatedAt: ${createdAt}`,
+    `UpdatedAt: ${updatedAt}`,
+  ].join('\n');
+}
+
+function parsePlayerIssue(issue) {
+  const body = issue.body || '';
+  const alias = body.match(/Alias:\s*([A-Za-z0-9_-]{3,16})/i)?.[1];
+  const pinHash = body.match(/PinHash:\s*([a-f0-9]{64})/i)?.[1];
+  const creditsText = body.match(/Credits:\s*([0-9]+)/i)?.[1];
+  const createdAt = body.match(/CreatedAt:\s*([^\n]+)/i)?.[1] || issue.created_at;
+  if (!alias || !pinHash || !creditsText) return null;
+  return {
+    alias,
+    pinHash,
+    credits: Number(creditsText),
+    createdAt,
+  };
+}
+
 function isSpawnObject(spawn, boardSize) {
   if (!spawn || typeof spawn !== 'object') return false;
   return isValidSpawnTuple([spawn.row, spawn.col, spawn.value], boardSize);
@@ -228,14 +337,23 @@ function chunkString(value, chunkSize) {
   return chunks;
 }
 
-async function createIssue(env, title, body) {
+async function createIssue(env, title, body, labels) {
   const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues`, {
     method: 'POST',
     body: JSON.stringify({
       title,
       body,
-      labels: [GITHUB_LABEL],
+      labels,
     }),
+  });
+
+  return response.json();
+}
+
+async function updateIssue(env, issueNumber, payload) {
+  const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues/${issueNumber}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
   });
 
   return response.json();
@@ -279,8 +397,3 @@ function json(data, status, headers) {
     },
   });
 }
-
-
-
-
-
