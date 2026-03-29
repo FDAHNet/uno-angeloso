@@ -16,6 +16,7 @@ const GITHUB_REPO = "2048";
 const GLOBAL_RECORD_LABEL = "record";
 const WORKER_API_URL = "https://angeloso-2048-records.mcdrer.workers.dev";
 const HOLE_SEQUENCE = ["h", "o", "l", "e"];
+const HOLE_DIRECTIONS = ["up", "left", "right", "down"];
 const AUTOSAVE_INTERVAL_MS = 30 * 60 * 1000;
 const INITIALS_TIMEOUT_MS = 60 * 1000;
 
@@ -946,7 +947,12 @@ function countAvailableMovesForValues(values) {
     .length;
 }
 
+const snakeWeightMapCache = new Map();
+
 function buildSnakeWeightMaps() {
+  if (snakeWeightMapCache.has(boardSize)) {
+    return snakeWeightMapCache.get(boardSize);
+  }
   const base = Array.from({ length: boardSize }, () => Array(boardSize).fill(0));
   let rank = boardSize * boardSize;
 
@@ -962,16 +968,47 @@ function buildSnakeWeightMaps() {
   const rotate = (matrix) => matrix[0].map((_, col) => matrix.map((row) => row[col]).reverse());
   const maps = [base];
   while (maps.length < 4) maps.push(rotate(maps[maps.length - 1]));
+  snakeWeightMapCache.set(boardSize, maps);
   return maps;
 }
 
-function evaluateBoardValues(values, gainedScore = 0) {
-  const emptyCells = countEmptyCells(values);
-  const mobility = countAvailableMovesForValues(values);
-  if (mobility === 0) return Number.NEGATIVE_INFINITY;
+function getEmptyPositions(values) {
+  const empty = [];
+  for (let row = 0; row < boardSize; row += 1) {
+    for (let col = 0; col < boardSize; col += 1) {
+      if (values[row][col] === 0) {
+        empty.push({ row, col });
+      }
+    }
+  }
+  return empty;
+}
 
+function getAdjacentEmptyCount(values, row, col) {
+  let count = 0;
+  [[-1, 0], [1, 0], [0, -1], [0, 1]].forEach(([dr, dc]) => {
+    const nextRow = row + dr;
+    const nextCol = col + dc;
+    if (nextRow >= 0 && nextRow < boardSize && nextCol >= 0 && nextCol < boardSize && values[nextRow][nextCol] === 0) {
+      count += 1;
+    }
+  });
+  return count;
+}
+
+function getBoardSignature(values) {
+  return values.map((row) => row.join(",")).join("|");
+}
+
+function applySpawnToValues(values, row, col, value) {
+  const nextValues = cloneBoardValues(values);
+  nextValues[row][col] = value;
+  return nextValues;
+}
+
+function scoreSnakeAlignment(values) {
   const weightMaps = buildSnakeWeightMaps();
-  const weightedSnake = Math.max(
+  return Math.max(
     ...weightMaps.map((weightMap) => {
       let total = 0;
       for (let row = 0; row < boardSize; row += 1) {
@@ -984,7 +1021,87 @@ function evaluateBoardValues(values, gainedScore = 0) {
       return total;
     })
   );
+}
 
+function getDominantSnakeWeightMap(values) {
+  const weightMaps = buildSnakeWeightMaps();
+  let bestMap = weightMaps[0];
+  let bestScore = Number.NEGATIVE_INFINITY;
+
+  weightMaps.forEach((weightMap) => {
+    let score = 0;
+    for (let row = 0; row < boardSize; row += 1) {
+      for (let col = 0; col < boardSize; col += 1) {
+        const value = values[row][col];
+        if (!value) continue;
+        score += Math.log2(value) * weightMap[row][col];
+      }
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestMap = weightMap;
+    }
+  });
+
+  return bestMap;
+}
+
+function scoreMonotonicity(values) {
+  let total = 0;
+
+  for (let row = 0; row < boardSize; row += 1) {
+    let leftToRight = 0;
+    let rightToLeft = 0;
+    for (let col = 0; col < boardSize - 1; col += 1) {
+      const current = values[row][col] ? Math.log2(values[row][col]) : 0;
+      const next = values[row][col + 1] ? Math.log2(values[row][col + 1]) : 0;
+      leftToRight += Math.max(0, current - next);
+      rightToLeft += Math.max(0, next - current);
+    }
+    total += Math.max(leftToRight, rightToLeft);
+  }
+
+  for (let col = 0; col < boardSize; col += 1) {
+    let topToBottom = 0;
+    let bottomToTop = 0;
+    for (let row = 0; row < boardSize - 1; row += 1) {
+      const current = values[row][col] ? Math.log2(values[row][col]) : 0;
+      const next = values[row + 1][col] ? Math.log2(values[row + 1][col]) : 0;
+      topToBottom += Math.max(0, current - next);
+      bottomToTop += Math.max(0, next - current);
+    }
+    total += Math.max(topToBottom, bottomToTop);
+  }
+
+  return total;
+}
+
+function scoreSmoothness(values) {
+  let penalty = 0;
+  for (let row = 0; row < boardSize; row += 1) {
+    for (let col = 0; col < boardSize; col += 1) {
+      const current = values[row][col];
+      if (!current) continue;
+      const currentLog = Math.log2(current);
+      if (col + 1 < boardSize && values[row][col + 1]) {
+        penalty += Math.abs(currentLog - Math.log2(values[row][col + 1]));
+      }
+      if (row + 1 < boardSize && values[row + 1][col]) {
+        penalty += Math.abs(currentLog - Math.log2(values[row + 1][col]));
+      }
+    }
+  }
+  return penalty;
+}
+
+function evaluateBoardValues(values, gainedScore = 0) {
+  const emptyCells = countEmptyCells(values);
+  const mobility = countAvailableMovesForValues(values);
+  if (mobility === 0) return Number.NEGATIVE_INFINITY;
+
+  const weightedSnake = scoreSnakeAlignment(values);
+  const monotonicity = scoreMonotonicity(values);
+  const smoothnessPenalty = scoreSmoothness(values);
   const maxTile = Math.max(...values.flat());
   const maxInCorner = [values[0][0], values[0][boardSize - 1], values[boardSize - 1][0], values[boardSize - 1][boardSize - 1]]
     .includes(maxTile);
@@ -993,20 +1110,119 @@ function evaluateBoardValues(values, gainedScore = 0) {
     (emptyCells * 10000)
     + (mobility * 2200)
     + (gainedScore * 18)
-    + weightedSnake
+    + (weightedSnake * 1.4)
+    + (monotonicity * 180)
+    - (smoothnessPenalty * 140)
     + (maxInCorner ? maxTile * 24 : 0)
   );
 }
 
+function getHoleSearchDepth(values) {
+  const emptyCells = countEmptyCells(values);
+  if (boardSize >= 8) {
+    if (emptyCells <= 3) return 3;
+    return 2;
+  }
+  if (boardSize >= 6) {
+    if (emptyCells <= 2) return 4;
+    if (emptyCells <= 6) return 3;
+    return 2;
+  }
+  if (emptyCells <= 2) return 5;
+  if (emptyCells <= 5) return 4;
+  if (emptyCells <= 8) return 3;
+  return 2;
+}
+
+function getRelevantChanceCells(values) {
+  const empty = getEmptyPositions(values);
+  if (empty.length <= 6) return empty;
+
+  const weightedSnakeMap = getDominantSnakeWeightMap(values);
+
+  return empty
+    .map((cell) => ({
+      ...cell,
+      badness: (weightedSnakeMap[cell.row][cell.col] * 12) - (getAdjacentEmptyCount(values, cell.row, cell.col) * 70),
+    }))
+    .sort((left, right) => right.badness - left.badness)
+    .slice(0, boardSize >= 6 ? 5 : 6);
+}
+
+function evaluateHoleFuture(values, depth, isChanceNode, cache) {
+  const signature = `${isChanceNode ? "C" : "P"}:${depth}:${getBoardSignature(values)}`;
+  if (cache.has(signature)) return cache.get(signature);
+
+  if (depth <= 0) {
+    const evaluation = evaluateBoardValues(values);
+    cache.set(signature, evaluation);
+    return evaluation;
+  }
+
+  if (isChanceNode) {
+    const emptyCells = getEmptyPositions(values);
+    if (emptyCells.length === 0) {
+      const fallback = evaluateHoleFuture(values, depth - 1, false, cache);
+      cache.set(signature, fallback);
+      return fallback;
+    }
+
+    const candidates = getRelevantChanceCells(values);
+    let weightedTotal = 0;
+    let probabilityTotal = 0;
+    let worstCase = Number.POSITIVE_INFINITY;
+
+    candidates.forEach(({ row, col }) => {
+      [
+        { value: 2, probability: 0.9 },
+        { value: 4, probability: 0.1 },
+      ].forEach(({ value, probability }) => {
+        const nextValues = applySpawnToValues(values, row, col, value);
+        const score = evaluateHoleFuture(nextValues, depth - 1, false, cache);
+        weightedTotal += score * probability;
+        probabilityTotal += probability;
+        worstCase = Math.min(worstCase, score);
+      });
+    });
+
+    const averageScore = probabilityTotal ? weightedTotal / probabilityTotal : evaluateBoardValues(values);
+    const blendedChanceScore = (averageScore * 0.68) + (worstCase * 0.32);
+    cache.set(signature, blendedChanceScore);
+    return blendedChanceScore;
+  }
+
+  let bestScore = Number.NEGATIVE_INFINITY;
+  let hasMove = false;
+
+  HOLE_DIRECTIONS.forEach((direction) => {
+    const simulation = simulateDirectionOnValues(values, direction);
+    if (!simulation.moved) return;
+    hasMove = true;
+    const futureScore = evaluateHoleFuture(simulation.values, depth - 1, true, cache);
+    const turnScore = futureScore
+      + (simulation.gainedScore * 36)
+      + (simulation.highestMerge * 14);
+    bestScore = Math.max(bestScore, turnScore);
+  });
+
+  const resolvedScore = hasMove ? bestScore : Number.NEGATIVE_INFINITY;
+  cache.set(signature, resolvedScore);
+  return resolvedScore;
+}
+
 function getHoleBestMove() {
   const currentValues = boardValuesFromState();
+  const depth = getHoleSearchDepth(currentValues);
+  const cache = new Map();
   let bestDirection = null;
   let bestScore = Number.NEGATIVE_INFINITY;
 
-  ["up", "left", "right", "down"].forEach((direction) => {
+  HOLE_DIRECTIONS.forEach((direction) => {
     const simulation = simulateDirectionOnValues(currentValues, direction);
     if (!simulation.moved) return;
-    const score = evaluateBoardValues(simulation.values, simulation.gainedScore);
+    const score = evaluateHoleFuture(simulation.values, depth - 1, true, cache)
+      + (simulation.gainedScore * 42)
+      + (simulation.highestMerge * 18);
     if (score > bestScore) {
       bestScore = score;
       bestDirection = direction;
