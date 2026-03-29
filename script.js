@@ -1337,20 +1337,34 @@ async function loadAdvancedBetDefinitionsFromWorker() {
 }
 
 async function saveAdminBetDefinitions() {
-  const payload = adminBetDefinitionsDraft.map((definition, index) => normalizeAdvancedBetDefinition({
-    ...definition,
-    id: definition.id || slugifyBetId(definition.label || `bet-${index + 1}`),
-  }, index));
-  const body = await postWorkerJson("/admin/bets/save", { definitions: payload });
-  advancedBetDefinitions = body.definitions.map(normalizeAdvancedBetDefinition);
-  refreshAdvancedBetDraftAgainstDefinitions();
-  adminOverview = {
-    ...(adminOverview || {}),
-    betDefinitions: cloneAdvancedBetDefinitions(advancedBetDefinitions),
-  };
-  setStatus("Configuracion de apuestas guardada.");
-  updateAdvancedModeUI();
-  renderAdminOverview();
+  const originalLabel = adminSaveBetsButton?.textContent || "Guardar apuestas";
+  if (adminSaveBetsButton) {
+    adminSaveBetsButton.disabled = true;
+    adminSaveBetsButton.textContent = "Guardando...";
+  }
+  setAdminPanelStatus("Guardando configuracion de apuestas...");
+
+  try {
+    const payload = adminBetDefinitionsDraft.map((definition, index) => normalizeAdvancedBetDefinition({
+      ...definition,
+      id: definition.id || slugifyBetId(definition.label || `bet-${index + 1}`),
+    }, index));
+    const body = await postWorkerJson("/admin/bets/save", { definitions: payload });
+    advancedBetDefinitions = body.definitions.map(normalizeAdvancedBetDefinition);
+    refreshAdvancedBetDraftAgainstDefinitions();
+    adminOverview = {
+      ...(adminOverview || {}),
+      betDefinitions: cloneAdvancedBetDefinitions(advancedBetDefinitions),
+    };
+    setAdminPanelStatus("Configuracion de apuestas guardada.");
+    updateAdvancedModeUI();
+    renderAdminOverview();
+  } finally {
+    if (adminSaveBetsButton) {
+      adminSaveBetsButton.disabled = false;
+      adminSaveBetsButton.textContent = originalLabel;
+    }
+  }
 }
 
 function setAdminPanelOpen(nextOpen) {
@@ -2208,6 +2222,12 @@ function setRecordsPanelOpen(nextOpen) {
 
 function setStatus(message) {
   statusElement.textContent = message;
+}
+
+function setAdminPanelStatus(message) {
+  if (adminPanelStatusElement) {
+    adminPanelStatusElement.textContent = message;
+  }
 }
 
 async function handleAdvancedModeToggle() {
@@ -5042,10 +5062,11 @@ refreshLedgerButton?.addEventListener("click", () => { void loadLedger(true); })
 adminAddBetButton?.addEventListener("click", () => {
   adminBetDefinitionsDraft.push(createEmptyAdminBetDefinition());
   renderAdminBetDefinitionsEditor();
+  setAdminPanelStatus("Nueva apuesta anadida. Recuerda guardar los cambios.");
 });
 adminSaveBetsButton?.addEventListener("click", () => {
   void saveAdminBetDefinitions().catch((error) => {
-    setStatus(`No pude guardar las apuestas: ${error.message}`);
+    setAdminPanelStatus(`No pude guardar las apuestas: ${error.message}`);
   });
 });
 closeUndoButton.addEventListener("click", () => setUndoPanelOpen(false));
