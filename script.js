@@ -1095,6 +1095,8 @@ function render() {
   syncBoardMetrics();
   scoreElement.textContent = gameState.score;
   bestScoreElement.textContent = gameState.bestScore;
+  applyScoreSizing(scoreElement, gameState.score);
+  applyScoreSizing(bestScoreElement, gameState.bestScore);
   const now = performance.now();
   const activeIds = new Set();
 
@@ -1483,6 +1485,16 @@ function getDirectionLabel(direction) {
     right: "DERECHA",
   };
   return labels[direction] || direction?.toUpperCase?.() || "";
+}
+
+function applyScoreSizing(element, value) {
+  if (!element) return;
+  element.classList.remove("is-large", "is-huge");
+  if (value >= 10000000) {
+    element.classList.add("is-huge");
+  } else if (value >= 1000000) {
+    element.classList.add("is-large");
+  }
 }
 
 function updateReplayArrow(direction = "") {

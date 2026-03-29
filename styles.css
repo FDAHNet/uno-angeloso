@@ -281,7 +281,11 @@ h1 {
 .score-card {
   position: relative;
   overflow: hidden;
-  min-width: 110px;
+  width: 168px;
+  min-width: 168px;
+  max-width: 168px;
+  flex: 0 0 168px;
+  min-height: 102px;
   padding: 14px 16px;
   border-radius: 18px;
   text-align: center;
@@ -357,6 +361,21 @@ h1 {
   display: block;
   font-size: 2rem;
   margin-top: 6px;
+  min-height: 2.3em;
+  font-family: "Press Start 2P", "Space Grotesk", sans-serif;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.score-card strong.is-large {
+  font-size: 1.55rem;
+}
+
+.score-card strong.is-huge {
+  font-size: 1.18rem;
 }
 
 .controls {
