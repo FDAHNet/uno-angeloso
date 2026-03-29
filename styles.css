@@ -461,6 +461,37 @@ h1 {
   padding-bottom: 16px;
 }
 
+.advanced-bets-panel.is-collapsed.is-empty-collapsed .advanced-bets-card {
+  width: fit-content;
+  min-width: 0;
+  margin-left: auto;
+  padding: 12px 14px;
+}
+
+.advanced-bets-panel.is-collapsed.is-empty-collapsed .advanced-bets-header {
+  gap: 10px;
+  align-items: center;
+}
+
+.advanced-bets-panel.is-collapsed.is-empty-collapsed .initials-eyebrow {
+  display: none;
+}
+
+.advanced-bets-panel.is-collapsed.is-empty-collapsed #advanced-bets-title {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.advanced-bets-panel.is-collapsed.is-empty-collapsed .advanced-bets-summary,
+.advanced-bets-panel.is-collapsed.is-empty-collapsed .advanced-bets-active {
+  display: none;
+}
+
+.advanced-bets-panel.is-collapsed.is-empty-collapsed #advanced-bets-close-button,
+.advanced-bets-panel.is-collapsed.is-empty-collapsed #advanced-logout-button {
+  display: none;
+}
+
 .advanced-bets-header,
 .advanced-bet-row {
   display: flex;
@@ -1183,8 +1214,15 @@ button:hover {
 }
 
 #restart-button.awaiting-start {
-  animation: manual-start-blink 1s ease-in-out infinite;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.1), 0 0 20px var(--glow);
+  background:
+    linear-gradient(135deg, #fff16c, #ff8c42 42%, #ff4d7a 74%, #6df8ff);
+  color: #170f08;
+  border-color: rgba(255,255,255,0.55);
+  animation: manual-start-blink 0.62s cubic-bezier(0.22, 0.82, 0.28, 1) infinite;
+  box-shadow:
+    0 0 0 2px rgba(255,255,255,0.18),
+    0 0 20px rgba(255, 210, 0, 0.34),
+    0 0 42px rgba(255, 99, 132, 0.34);
 }
 
 .pause-title,
@@ -2429,8 +2467,22 @@ button:hover {
 }
 
 @keyframes manual-start-blink {
-  0%, 100% { transform: translateY(0); filter: brightness(1); }
-  50% { transform: translateY(-1px); filter: brightness(1.12); }
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    filter: brightness(1) saturate(1);
+  }
+  25% {
+    transform: translateY(-2px) scale(1.02);
+    filter: brightness(1.18) saturate(1.08);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.05);
+    filter: brightness(1.34) saturate(1.2);
+  }
+  75% {
+    transform: translateY(-1px) scale(1.015);
+    filter: brightness(1.14) saturate(1.05);
+  }
 }
 
 @keyframes burst-ring {

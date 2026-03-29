@@ -290,7 +290,7 @@ function createDefaultAdvancedBetDraft() {
     ADVANCED_BET_DEFINITIONS.map((definition) => [
       definition.id,
       {
-        prediction: definition.options[0].value,
+        prediction: "",
         stake: 0,
       },
     ])
@@ -308,7 +308,7 @@ function loadAdvancedBetDraft() {
       if (!entry) return;
       const validPrediction = definition.options.some((option) => option.value === entry.prediction)
         ? entry.prediction
-        : definition.options[0].value;
+        : "";
       const validStake = ADVANCED_BET_STAKES.includes(Number(entry.stake)) ? Number(entry.stake) : 0;
       nextDraft[definition.id] = { prediction: validPrediction, stake: validStake };
     });
@@ -404,11 +404,16 @@ function describeAdvancedDraft() {
   return pendingRound.wagers.map((wager) => `${wager.label}: ${wager.predictionLabel} (${wager.stake})`).join(" · ");
 }
 
+function hasPreparedAdvancedBets() {
+  return Boolean(buildAdvancedRoundFromDraft()?.wagers?.length);
+}
+
 function updateAdvancedModeUI() {
   if (advancedModeToggle) advancedModeToggle.checked = advancedMode;
   creditsCardElement?.classList.toggle("hidden", !advancedMode);
   advancedBetsPanelElement?.classList.toggle("hidden", !(advancedMode && advancedBetsVisible));
   advancedBetsPanelElement?.classList.toggle("is-collapsed", advancedBetsCollapsed);
+  advancedBetsPanelElement?.classList.toggle("is-empty-collapsed", advancedBetsCollapsed && !hasPreparedAdvancedBets() && !activeAdvancedRound?.wagers?.length);
   if (advancedBetsCollapseButton) {
     advancedBetsCollapseButton.textContent = advancedBetsCollapsed ? "Expandir" : "Encoger";
   }
@@ -435,8 +440,8 @@ function renderAdvancedBetsPanel() {
 
   advancedBetsListElement.innerHTML = "";
   ADVANCED_BET_DEFINITIONS.forEach((definition) => {
-    const draft = advancedBetDraft?.[definition.id] || { prediction: definition.options[0].value, stake: 0 };
-    const option = getAdvancedBetOption(definition.id, draft.prediction) || definition.options[0];
+    const draft = advancedBetDraft?.[definition.id] || { prediction: "", stake: 0 };
+    const option = getAdvancedBetOption(definition.id, draft.prediction);
 
     const row = document.createElement("div");
     row.className = "advanced-bet-row";
@@ -453,7 +458,7 @@ function renderAdvancedBetsPanel() {
 
     const payout = document.createElement("small");
     payout.className = "advanced-bet-payout";
-    payout.textContent = `Premio x${option.payout.toFixed(1)} si aciertas`;
+    payout.textContent = option ? `Premio x${option.payout.toFixed(1)} si aciertas` : "Sin apuesta preparada";
 
     copy.append(label, desc, payout);
 
@@ -461,6 +466,11 @@ function renderAdvancedBetsPanel() {
     controls.className = "advanced-bet-controls";
 
     const predictionSelect = document.createElement("select");
+    const emptyPredictionOption = document.createElement("option");
+    emptyPredictionOption.value = "";
+    emptyPredictionOption.textContent = "Sin apuesta";
+    if (!draft.prediction) emptyPredictionOption.selected = true;
+    predictionSelect.appendChild(emptyPredictionOption);
     definition.options.forEach((entry) => {
       const optionElement = document.createElement("option");
       optionElement.value = entry.value;
