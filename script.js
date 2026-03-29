@@ -1077,14 +1077,22 @@ async function loadAdminUser(alias, force = false) {
   if (!alias) return;
   if (adminUserLoading && !force) return;
   adminSelectedUserAlias = String(alias).toUpperCase();
+  const overviewPlayer = adminOverview?.players?.find((player) => String(player.alias).toUpperCase() === adminSelectedUserAlias);
+  if (overviewPlayer) {
+    adminSelectedUserData = {
+      ...overviewPlayer,
+      entries: Array.isArray(adminSelectedUserData?.entries) && adminSelectedUserData.alias === overviewPlayer.alias
+        ? adminSelectedUserData.entries
+        : [],
+    };
+  }
   adminUserLoading = true;
   renderAdminUserPanel();
   try {
     adminSelectedUserData = await postWorkerJson("/admin/player", { alias: adminSelectedUserAlias });
   } catch (error) {
-    adminSelectedUserData = null;
     if (adminUserStatusElement) {
-      adminUserStatusElement.textContent = `No pude cargar la ficha: ${error.message}`;
+      adminUserStatusElement.textContent = `Ficha abierta con datos basicos, pero no pude cargar el detalle: ${error.message}`;
     }
   } finally {
     adminUserLoading = false;
