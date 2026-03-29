@@ -80,9 +80,7 @@ const replayNextButton = document.getElementById("replay-next-button");
 const replayLastButton = document.getElementById("replay-last-button");
 const initialsEntryElement = document.getElementById("initials-entry");
 const initialsSlotsElement = document.getElementById("initials-slots");
-const currentLetterElement = document.getElementById("current-letter");
-const letterUpButton = document.getElementById("letter-up-button");
-const letterDownButton = document.getElementById("letter-down-button");
+const initialsGridElement = document.getElementById("initials-grid");
 const selectLetterButton = document.getElementById("select-letter-button");
 const deleteLetterButton = document.getElementById("delete-letter-button");
 const closeInitialsButton = document.getElementById("close-initials-button");
@@ -142,6 +140,8 @@ let moveSequence = 0;
 let initialsTimerInterval = null;
 let saveSlotsPanelOpen = false;
 const ARCADE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const INITIALS_GRID_CHARS = [...ARCADE_ALPHABET, "?"];
+const INITIALS_GRID_COLUMNS = 9;
 const GLOBAL_MODES = ["4x4", "5x5", "6x6", "8x8"];
 const REPLAY_MOVE_CODES = {
   up: "U",
@@ -2380,7 +2380,7 @@ function openInitialsEntry(score) {
   initialsEntryState.active = true;
   initialsEntryState.letters = ["", "", ""];
   initialsEntryState.slot = 0;
-  initialsEntryState.selectedIndex = Math.max(0, ARCADE_ALPHABET.indexOf(previous[0] || "A"));
+  initialsEntryState.selectedIndex = Math.max(0, INITIALS_GRID_CHARS.indexOf(previous[0] || "A"));
   initialsEntryState.pendingScore = score;
   initialsEntryState.deadlineAt = Date.now() + INITIALS_TIMEOUT_MS;
   renderInitialsEntry();
@@ -2412,7 +2412,7 @@ function closeInitialsEntry(options = {}) {
 }
 
 function getCurrentSelectedLetter() {
-  return ARCADE_ALPHABET[initialsEntryState.selectedIndex] || "A";
+  return INITIALS_GRID_CHARS[initialsEntryState.selectedIndex] || "A";
 }
 
 function renderInitialsEntry() {
@@ -2425,17 +2425,49 @@ function renderInitialsEntry() {
     initialsSlotsElement.appendChild(slot);
   }
 
-  currentLetterElement.textContent = getCurrentSelectedLetter();
+  if (initialsGridElement) {
+    initialsGridElement.innerHTML = "";
+    INITIALS_GRID_CHARS.forEach((character, index) => {
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "initials-grid-cell";
+      if (character === "?") cell.classList.add("is-symbol");
+      if (index === initialsEntryState.selectedIndex) cell.classList.add("is-selected");
+      cell.textContent = character;
+      cell.addEventListener("click", () => {
+        initialsEntryState.selectedIndex = index;
+        renderInitialsEntry();
+        persistSessionSnapshot();
+      });
+      initialsGridElement.appendChild(cell);
+    });
+  }
 
   const filledCount = initialsEntryState.letters.filter(Boolean).length;
   selectLetterButton.textContent = filledCount === 2 ? "Guardar record" : "Marcar letra";
   deleteLetterButton.disabled = filledCount === 0;
 }
 
-function shiftCurrentLetter(step) {
+function moveInitialsCursor(deltaRow, deltaCol) {
   if (!initialsEntryState.active) return;
-  const total = ARCADE_ALPHABET.length;
-  initialsEntryState.selectedIndex = (initialsEntryState.selectedIndex + step + total) % total;
+  const total = INITIALS_GRID_CHARS.length;
+  let row = Math.floor(initialsEntryState.selectedIndex / INITIALS_GRID_COLUMNS);
+  let col = initialsEntryState.selectedIndex % INITIALS_GRID_COLUMNS;
+
+  row += deltaRow;
+  col += deltaCol;
+
+  const maxRow = Math.floor((total - 1) / INITIALS_GRID_COLUMNS);
+  row = Math.max(0, Math.min(maxRow, row));
+  col = Math.max(0, Math.min(INITIALS_GRID_COLUMNS - 1, col));
+
+  let nextIndex = (row * INITIALS_GRID_COLUMNS) + col;
+  while (nextIndex >= total && col > 0) {
+    col -= 1;
+    nextIndex = (row * INITIALS_GRID_COLUMNS) + col;
+  }
+
+  initialsEntryState.selectedIndex = Math.max(0, Math.min(total - 1, nextIndex));
   renderInitialsEntry();
   persistSessionSnapshot();
 }
@@ -3472,12 +3504,22 @@ function handleKeydown(event) {
   if (initialsEntryState.active) {
     if (event.key === "ArrowUp" || event.key === "w" || event.key === "W") {
       event.preventDefault();
-      shiftCurrentLetter(-1);
+      moveInitialsCursor(-1, 0);
       return;
     }
     if (event.key === "ArrowDown" || event.key === "s" || event.key === "S") {
       event.preventDefault();
-      shiftCurrentLetter(1);
+      moveInitialsCursor(1, 0);
+      return;
+    }
+    if (event.key === "ArrowLeft" || event.key === "a" || event.key === "A") {
+      event.preventDefault();
+      moveInitialsCursor(0, -1);
+      return;
+    }
+    if (event.key === "ArrowRight" || event.key === "d" || event.key === "D") {
+      event.preventDefault();
+      moveInitialsCursor(0, 1);
       return;
     }
     if (event.key === "Enter" || event.key === " ") {
@@ -3610,12 +3652,8 @@ closeUndoButton.addEventListener("click", () => setUndoPanelOpen(false));
 closeSaveSlotsButton.addEventListener("click", () => setSaveSlotsPanelOpen(false));
 startAttractButton.addEventListener("click", startActualGame);
 themeSelect.addEventListener("change", (event) => applyTheme(event.target.value));
-letterUpButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
-letterDownButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
 selectLetterButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
 deleteLetterButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
-letterUpButton.addEventListener("click", () => shiftCurrentLetter(-1));
-letterDownButton.addEventListener("click", () => shiftCurrentLetter(1));
 selectLetterButton.addEventListener("click", commitCurrentLetter);
 deleteLetterButton.addEventListener("click", deleteLastLetter);
 closeInitialsButton.addEventListener("click", () => closeInitialsEntry({ discard: true }));
