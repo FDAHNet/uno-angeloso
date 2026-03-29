@@ -396,6 +396,8 @@ h1 {
 }
 
 .credits-card {
+  display: flex;
+  flex-direction: column;
   background:
     linear-gradient(180deg, rgba(255, 224, 130, 0.2), rgba(120, 77, 10, 0.22)),
     linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.08));
@@ -404,7 +406,7 @@ h1 {
 
 .credits-player {
   display: block;
-  margin-top: 8px;
+  margin-top: auto;
   min-height: 1.2em;
   color: color-mix(in srgb, var(--accent) 62%, white 38%);
   font-size: 0.72rem;
@@ -416,24 +418,17 @@ h1 {
 }
 
 .advanced-mini-toggle {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  display: grid;
+  justify-items: center;
   align-items: center;
-  gap: 4px;
-  width: 132px;
-  min-width: 132px;
-  max-width: 132px;
-  min-height: 102px;
-  padding: 10px 10px 8px;
-  border-radius: 18px;
-  border: 1px solid rgba(255,255,255,0.09);
-  background: rgba(255,255,255,0.04);
+  gap: 2px;
+  margin-top: -2px;
+  margin-bottom: 6px;
 }
 
 .advanced-mini-label {
-  font-size: 0.46rem;
-  line-height: 1.25;
+  font-size: 0.4rem;
+  line-height: 1.15;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
@@ -442,9 +437,9 @@ h1 {
 
 .advanced-mini-button {
   min-width: 0;
-  padding: 4px 8px;
-  border-radius: 10px;
-  font-size: 0.6rem;
+  padding: 3px 7px;
+  border-radius: 9px;
+  font-size: 0.54rem;
   line-height: 1.1;
   box-shadow: none;
 }
