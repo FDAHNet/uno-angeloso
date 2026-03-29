@@ -111,6 +111,8 @@ const advancedBetsPanelElement = document.getElementById("advanced-bets-panel");
 const advancedBetsListElement = document.getElementById("advanced-bets-list");
 const advancedBetsSummaryElement = document.getElementById("advanced-bets-summary");
 const advancedBetsActiveElement = document.getElementById("advanced-bets-active");
+const advancedBetsCloseButton = document.getElementById("advanced-bets-close-button");
+const advancedLogoutButton = document.getElementById("advanced-logout-button");
 const clearAdvancedBetsButton = document.getElementById("clear-advanced-bets-button");
 const replayViewerElement = document.getElementById("replay-viewer");
 const replayMetaElement = document.getElementById("replay-meta");
@@ -158,6 +160,7 @@ let advancedBetDraft = loadAdvancedBetDraft();
 let activeAdvancedRound = null;
 let advancedBetResultMessage = "";
 let awaitingManualStart = false;
+let advancedBetsVisible = advancedMode;
 let journalEntries = [];
 let currentReplay = null;
 let recordsPanelOpen = false;
@@ -383,7 +386,7 @@ function describeAdvancedRound(round = activeAdvancedRound) {
 function updateAdvancedModeUI() {
   if (advancedModeToggle) advancedModeToggle.checked = advancedMode;
   creditsCardElement?.classList.toggle("hidden", !advancedMode);
-  advancedBetsPanelElement?.classList.toggle("hidden", !advancedMode);
+  advancedBetsPanelElement?.classList.toggle("hidden", !(advancedMode && advancedBetsVisible));
   if (creditsElement) {
     creditsElement.textContent = String(Math.max(0, Math.trunc(advancedCredits)));
     applyScoreSizing(creditsElement, advancedCredits);
@@ -1512,6 +1515,7 @@ async function handleAdvancedModeToggle() {
     return;
   }
   localStorage.setItem(ADVANCED_MODE_KEY, String(advancedMode));
+  if (advancedMode) advancedBetsVisible = true;
   updateAdvancedModeUI();
 
   if (!advancedMode) {
@@ -1557,6 +1561,23 @@ async function submitAdvancedAuth() {
 async function handleAdvancedAuthSubmitEvent(event) {
   event?.preventDefault?.();
   await submitAdvancedAuth();
+}
+
+function logoutAdvancedPlayer() {
+  if (activeAdvancedRound?.wagers?.length && !activeAdvancedRound.settled) {
+    setStatus("No puedes hacer logout con una ronda avanzada activa.");
+    return;
+  }
+  advancedPlayerAuth = null;
+  advancedCredits = DEFAULT_ADVANCED_CREDITS;
+  saveAdvancedPlayerAuth(null);
+  closeAdvancedAuthEntry();
+  advancedMode = false;
+  advancedBetsVisible = false;
+  if (advancedModeToggle) advancedModeToggle.checked = false;
+  localStorage.setItem(ADVANCED_MODE_KEY, "false");
+  updateAdvancedModeUI();
+  setStatus("Sesion avanzada cerrada.");
 }
 
 function boardValuesFromState(state = gameState) {
@@ -4309,6 +4330,11 @@ advancedAuthXButton?.addEventListener("click", () => {
     updateAdvancedModeUI();
   }
 });
+advancedBetsCloseButton?.addEventListener("click", () => {
+  advancedBetsVisible = false;
+  updateAdvancedModeUI();
+});
+advancedLogoutButton?.addEventListener("click", logoutAdvancedPlayer);
 clearAdvancedBetsButton?.addEventListener("click", () => {
   advancedBetDraft = createDefaultAdvancedBetDraft();
   saveAdvancedBetDraft();

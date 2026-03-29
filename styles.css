@@ -456,6 +456,14 @@ h1 {
   color: var(--muted);
 }
 
+.advanced-bets-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .advanced-bets-list {
   display: grid;
   gap: 12px;
@@ -518,6 +526,7 @@ h1 {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  position: relative;
   padding: 10px 14px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
@@ -535,6 +544,36 @@ h1 {
 .advanced-toggle span {
   color: var(--muted);
   font-size: 0.92rem;
+}
+
+.advanced-toggle-hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 12px);
+  transform: translateX(-50%) translateY(6px);
+  width: min(320px, 72vw);
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(10, 10, 16, 0.96);
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
+  color: var(--text);
+  font-size: 0.8rem;
+  line-height: 1.45;
+  text-transform: none;
+  letter-spacing: normal;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
+  z-index: 8;
+}
+
+.advanced-toggle:hover .advanced-toggle-hint,
+.advanced-toggle:focus-within .advanced-toggle-hint {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
 }
 
 .size-picker {
@@ -2382,6 +2421,10 @@ button:hover {
   .advanced-bets-footer {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .advanced-bets-header-actions {
+    justify-content: stretch;
   }
 
   .advanced-bet-controls {

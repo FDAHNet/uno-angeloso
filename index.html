@@ -73,6 +73,7 @@
         <label class="advanced-toggle" for="advanced-mode-toggle">
           <input id="advanced-mode-toggle" type="checkbox">
           <span>Modo Avanzado</span>
+          <span class="advanced-toggle-hint">El Modo Avanzado es jugar con Apuestas contra tu credito. Si se te acaba, ya no puedes jugar mas en modo avanzado.</span>
         </label>
         <button id="restart-button" type="button">Nueva partida</button>
       </div>
@@ -85,7 +86,11 @@
             <p class="initials-eyebrow">Modo avanzado</p>
             <h3 id="advanced-bets-title">Apuestas de la partida</h3>
           </div>
-          <button id="clear-advanced-bets-button" type="button" class="secondary-button">Limpiar</button>
+          <div class="advanced-bets-header-actions">
+            <button id="advanced-bets-close-button" type="button" class="stats-close-button" aria-label="Cerrar seccion de apuestas">X</button>
+            <button id="clear-advanced-bets-button" type="button" class="secondary-button">Limpiar</button>
+            <button id="advanced-logout-button" type="button" class="danger-button">Logout</button>
+          </div>
         </div>
         <p class="advanced-bets-help">Predice estadisticas antes de empezar. Los creditos se descuentan al arrancar y se liquidan al final.</p>
         <div id="advanced-bets-list" class="advanced-bets-list"></div>
