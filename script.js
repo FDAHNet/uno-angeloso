@@ -68,6 +68,8 @@ const fxLayer = document.getElementById("fx-layer");
 const scoreElement = document.getElementById("score");
 const creditsCardElement = document.getElementById("credits-card");
 const creditsElement = document.getElementById("credits");
+const advancedMiniToggleElement = document.getElementById("advanced-mini-toggle");
+const advancedMiniExpandButton = document.getElementById("advanced-mini-expand-button");
 const creditsPlayerElement = document.getElementById("credits-player");
 const bestScoreElement = document.getElementById("best-score");
 const bestScoreCardElement = document.getElementById("best-score-card");
@@ -408,12 +410,24 @@ function hasPreparedAdvancedBets() {
   return Boolean(buildAdvancedRoundFromDraft()?.wagers?.length);
 }
 
+function shouldShowAdvancedMiniToggle() {
+  return Boolean(
+    advancedMode
+    && advancedBetsVisible
+    && advancedBetsCollapsed
+    && !hasPreparedAdvancedBets()
+    && !activeAdvancedRound?.wagers?.length
+  );
+}
+
 function updateAdvancedModeUI() {
   if (advancedModeToggle) advancedModeToggle.checked = advancedMode;
   creditsCardElement?.classList.toggle("hidden", !advancedMode);
-  advancedBetsPanelElement?.classList.toggle("hidden", !(advancedMode && advancedBetsVisible));
+  const showMiniToggle = shouldShowAdvancedMiniToggle();
+  advancedBetsPanelElement?.classList.toggle("hidden", !(advancedMode && advancedBetsVisible) || showMiniToggle);
   advancedBetsPanelElement?.classList.toggle("is-collapsed", advancedBetsCollapsed);
   advancedBetsPanelElement?.classList.toggle("is-empty-collapsed", advancedBetsCollapsed && !hasPreparedAdvancedBets() && !activeAdvancedRound?.wagers?.length);
+  advancedMiniToggleElement?.classList.toggle("hidden", !showMiniToggle);
   if (advancedBetsCollapseButton) {
     advancedBetsCollapseButton.textContent = advancedBetsCollapsed ? "Expandir" : "Encoger";
   }
@@ -4568,6 +4582,11 @@ advancedBetsCloseButton?.addEventListener("click", () => {
 });
 advancedBetsCollapseButton?.addEventListener("click", () => {
   advancedBetsCollapsed = !advancedBetsCollapsed;
+  updateAdvancedModeUI();
+});
+advancedMiniExpandButton?.addEventListener("click", () => {
+  advancedBetsCollapsed = false;
+  advancedBetsVisible = true;
   updateAdvancedModeUI();
 });
 advancedLogoutButton?.addEventListener("click", logoutAdvancedPlayer);
