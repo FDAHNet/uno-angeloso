@@ -267,7 +267,7 @@ h1 {
 .hud {
   display: flex;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
 }
 
@@ -1874,10 +1874,17 @@ button:hover {
     align-items: stretch;
   }
 
-  .hud,
   .cabinet-strip,
   .global-records-groups {
     grid-template-columns: 1fr;
+  }
+
+  .hud {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    align-items: stretch;
   }
 
   .cabinet-strip {
