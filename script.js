@@ -80,6 +80,7 @@ const undoToggleButton = document.getElementById("undo-toggle-button");
 const pauseButton = document.getElementById("pause-button");
 const saveGameButton = document.getElementById("save-game-button");
 const pauseOverlayElement = document.getElementById("pause-overlay");
+const manualStartOverlayElement = document.getElementById("manual-start-overlay");
 const undoPanelElement = document.getElementById("undo-panel");
 const closeUndoButton = document.getElementById("close-undo-button");
 const undoListElement = document.getElementById("undo-list");
@@ -136,6 +137,7 @@ const advancedAliasInput = document.getElementById("advanced-alias-input");
 const advancedPinInput = document.getElementById("advanced-pin-input");
 const advancedAuthSubmitButton = document.getElementById("advanced-auth-submit");
 const advancedAuthCloseButton = document.getElementById("advanced-auth-close");
+const advancedAuthXButton = document.getElementById("advanced-auth-x");
 
 let boardSize = Number(boardSizeSelect.value);
 let nextTileId = 1;
@@ -155,6 +157,7 @@ let advancedCredits = Number(advancedPlayerAuth?.credits ?? DEFAULT_ADVANCED_CRE
 let advancedBetDraft = loadAdvancedBetDraft();
 let activeAdvancedRound = null;
 let advancedBetResultMessage = "";
+let awaitingManualStart = false;
 let journalEntries = [];
 let currentReplay = null;
 let recordsPanelOpen = false;
@@ -601,10 +604,11 @@ async function settleAdvancedRound(reason) {
   persistSessionSnapshot();
 }
 
-async function ensureAdvancedPlayer() {
+async function ensureAdvancedPlayer(options = {}) {
+  const { prompt = false } = options;
   if (!advancedMode) return false;
   if (!advancedPlayerAuth?.alias || !advancedPlayerAuth?.pinHash) {
-    openAdvancedAuthEntry();
+    if (prompt) openAdvancedAuthEntry();
     return false;
   }
 
@@ -616,7 +620,7 @@ async function ensureAdvancedPlayer() {
     advancedPlayerAuth = null;
     advancedCredits = DEFAULT_ADVANCED_CREDITS;
     updateAdvancedModeUI();
-    openAdvancedAuthEntry();
+    if (prompt) openAdvancedAuthEntry();
     setStatus(`Modo avanzado: ${error.message}`);
     return false;
   }
@@ -876,6 +880,11 @@ function updatePauseButton() {
   if (!pauseButton) return;
   pauseButton.textContent = gamePaused ? "SEGUIR" : "PAUSA";
   pauseButton.classList.toggle("is-active", gamePaused);
+}
+
+function updateManualStartUI() {
+  manualStartOverlayElement?.classList.toggle("hidden", !awaitingManualStart);
+  restartButton?.classList.toggle("awaiting-start", awaitingManualStart);
 }
 
 function setPauseOverlay(visible) {
@@ -1340,6 +1349,7 @@ function startGame(options = {}) {
     closeInitialsEntry({ discard: true });
   }
   gameSessionId += 1;
+  awaitingManualStart = false;
   discardReplayState();
   stopDemoMode();
   stopHoleMode({ keepStatus: true });
@@ -1384,6 +1394,7 @@ function startGame(options = {}) {
   }
   render();
   updateAdvancedModeUI();
+  updateManualStartUI();
   renderJournal();
   renderUndoHistory();
   renderRecords();
@@ -1509,7 +1520,7 @@ async function handleAdvancedModeToggle() {
     return;
   }
 
-  const ready = await ensureAdvancedPlayer();
+  const ready = await ensureAdvancedPlayer({ prompt: true });
   if (ready) {
     setStatus(`Modo avanzado listo para ${advancedPlayerAuth.alias}.`);
   }
@@ -2085,7 +2096,6 @@ function startHoleMode() {
   stopDemoMode();
   holeMode = true;
   holeRunUsed = true;
-  setAdvancedRoundVoided("H.O.L.E.");
   if (currentReplay) currentReplay.category = "hole";
   holeSequenceProgress = 0;
   holePreferredCorner = determineHolePreferredCorner(boardValuesFromState());
@@ -3472,8 +3482,42 @@ function scheduleDemoMove() {
 function startAttractMode() {
   stopHoleMode({ keepStatus: true });
   attractDismissed = false;
+  awaitingManualStart = false;
   attractOverlayElement.classList.remove("hidden");
   startGame({ demo: true });
+}
+
+function enterManualStartMode() {
+  awaitingManualStart = true;
+  demoMode = false;
+  gamePaused = false;
+  pausedElapsedMs = 0;
+  stopGameTimer();
+  stopHoleMode({ keepStatus: true });
+  discardReplayState();
+  closeInitialsEntry({ discard: true });
+  setStatsPanelOpen(false);
+  setGameOverOverlay(false);
+  setPauseOverlay(false);
+  fxLayer.innerHTML = "";
+  isAnimating = false;
+  recordSaved = false;
+  pendingGlobalRecord = null;
+  journalEntries = [];
+  currentReplay = null;
+  moveHistory = [];
+  moveSequence = 0;
+  gameState = createEmptyState();
+  buildGrid();
+  render();
+  renderJournal();
+  renderUndoHistory();
+  renderGameTimer();
+  updatePauseButton();
+  updateAdvancedModeUI();
+  updateManualStartUI();
+  clearSessionSnapshot();
+  setStatus("Prepara apuestas y pulsa Nueva partida para empezar.");
 }
 
 function startActualGame() {
@@ -3482,12 +3526,12 @@ function startActualGame() {
   stopDemoMode();
   closeInitialsEntry({ discard: true });
   attractOverlayElement.classList.add("hidden");
-  void startFreshGame();
+  enterManualStartMode();
 }
 
 async function prepareAdvancedRoundForNewGame() {
   if (!advancedMode) return null;
-  const ready = await ensureAdvancedPlayer();
+  const ready = await ensureAdvancedPlayer({ prompt: true });
   if (!ready) {
     setStatus("Entra con alias y PIN para usar el modo avanzado.");
     return false;
@@ -3554,7 +3598,7 @@ function maybePersistCurrentScore() {
 
 function finishGame() {
   if (demoMode) return;
-  if (gameState.over || isAnimating || initialsEntryState.active || gamePaused) return;
+  if (awaitingManualStart || gameState.over || isAnimating || initialsEntryState.active || gamePaused) return;
   stopHoleMode({ keepStatus: true });
   gameState.over = true;
   renderGameTimer();
@@ -3973,6 +4017,7 @@ function playTimeMilestoneSound() {
 }
 
 function queueMove(direction) {
+  if (awaitingManualStart) return;
   if (!audioEnabled) {
     move(direction);
     return;
@@ -3998,6 +4043,17 @@ function toggleAudioEnabled() {
 }
 
 function handleKeydown(event) {
+  const target = event.target;
+  if (
+    target instanceof HTMLInputElement
+    || target instanceof HTMLTextAreaElement
+    || target instanceof HTMLSelectElement
+  ) {
+    return;
+  }
+  if (awaitingManualStart) {
+    return;
+  }
   if (gamePaused) {
     if (event.key === "Escape") {
       event.preventDefault();
@@ -4023,13 +4079,13 @@ function handleKeydown(event) {
       toggleReplayPlayback();
       return;
     }
-    if (event.key === "ArrowRight" || event.key === "d" || event.key === "D") {
+    if (event.key === "ArrowRight") {
       event.preventDefault();
       pauseReplayPlayback();
       setReplayToIndex(replaySession.index + 1);
       return;
     }
-    if (event.key === "ArrowLeft" || event.key === "a" || event.key === "A") {
+    if (event.key === "ArrowLeft") {
       event.preventDefault();
       pauseReplayPlayback();
       setReplayToIndex(replaySession.index - 1);
@@ -4050,22 +4106,22 @@ function handleKeydown(event) {
   }
 
   if (initialsEntryState.active) {
-    if (event.key === "ArrowUp" || event.key === "w" || event.key === "W") {
+    if (event.key === "ArrowUp") {
       event.preventDefault();
       moveInitialsCursor(-1, 0);
       return;
     }
-    if (event.key === "ArrowDown" || event.key === "s" || event.key === "S") {
+    if (event.key === "ArrowDown") {
       event.preventDefault();
       moveInitialsCursor(1, 0);
       return;
     }
-    if (event.key === "ArrowLeft" || event.key === "a" || event.key === "A") {
+    if (event.key === "ArrowLeft") {
       event.preventDefault();
       moveInitialsCursor(0, -1);
       return;
     }
-    if (event.key === "ArrowRight" || event.key === "d" || event.key === "D") {
+    if (event.key === "ArrowRight") {
       event.preventDefault();
       moveInitialsCursor(0, 1);
       return;
@@ -4086,14 +4142,6 @@ function handleKeydown(event) {
     ArrowDown: "down",
     ArrowLeft: "left",
     ArrowRight: "right",
-    w: "up",
-    a: "left",
-    s: "down",
-    d: "right",
-    W: "up",
-    A: "left",
-    S: "down",
-    D: "right",
   };
   const direction = keyMap[event.key];
   if (!direction && !event.repeat && !replayMode && !initialsEntryState.active) {
@@ -4127,7 +4175,7 @@ function handleKeydown(event) {
 
 function handleTouchStart(event) {
   if (!attractDismissed) startActualGame();
-  if (gamePaused) return;
+  if (gamePaused || awaitingManualStart) return;
   void unlockAudio();
   const touch = event.changedTouches[0];
   touchStart = { x: touch.clientX, y: touch.clientY };
@@ -4135,7 +4183,7 @@ function handleTouchStart(event) {
 
 function handleTouchEnd(event) {
   if (!touchStart) return;
-  if (gamePaused) {
+  if (gamePaused || awaitingManualStart) {
     touchStart = null;
     return;
   }
@@ -4178,13 +4226,17 @@ boardSizeSelect.addEventListener("change", () => {
   if (audioEnabled) void unlockAudio();
   attractDismissed = true;
   attractOverlayElement.classList.add("hidden");
+  if (awaitingManualStart) {
+    enterManualStartMode();
+    return;
+  }
   void startFreshGame();
 });
 finishButton.addEventListener("click", finishGame);
 audioToggleButton.addEventListener("click", toggleAudioEnabled);
 undoToggleButton.addEventListener("click", () => setUndoPanelOpen(!undoPanelOpen));
 pauseButton.addEventListener("click", () => {
-  if (demoMode || replayMode || initialsEntryState.active || gameState.over) return;
+  if (demoMode || replayMode || initialsEntryState.active || gameState.over || awaitingManualStart) return;
   setGamePaused(!gamePaused);
 });
 saveGameButton.addEventListener("click", () => {
@@ -4249,6 +4301,14 @@ advancedAuthCloseButton?.addEventListener("click", () => {
     updateAdvancedModeUI();
   }
 });
+advancedAuthXButton?.addEventListener("click", () => {
+  closeAdvancedAuthEntry();
+  if (!advancedPlayerAuth) {
+    advancedMode = false;
+    localStorage.setItem(ADVANCED_MODE_KEY, "false");
+    updateAdvancedModeUI();
+  }
+});
 clearAdvancedBetsButton?.addEventListener("click", () => {
   advancedBetDraft = createDefaultAdvancedBetDraft();
   saveAdvancedBetDraft();
@@ -4270,6 +4330,7 @@ buildGrid();
 applyTheme(theme);
 updateAudioToggleButton();
 updateAdvancedModeUI();
+updateManualStartUI();
 updatePauseButton();
 setRecordsPanelOpen(false);
 closeInitialsEntry();

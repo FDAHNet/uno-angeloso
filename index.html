@@ -33,14 +33,14 @@
         </p>
       </div>
       <div class="hud">
-        <div class="score-card">
-          <span>Puntuaci&oacute;n</span>
-          <strong id="score">0</strong>
-        </div>
         <div id="credits-card" class="score-card credits-card hidden">
           <span>Creditos</span>
           <strong id="credits">100</strong>
           <small id="credits-player" class="credits-player">Alias pendiente</small>
+        </div>
+        <div class="score-card">
+          <span>Puntuaci&oacute;n</span>
+          <strong id="score">0</strong>
         </div>
         <div id="best-score-card" class="score-card best-score-card">
           <span>Record</span>
@@ -50,7 +50,7 @@
     </section>
 
     <section class="controls">
-      <p>Usa <kbd>W A S D</kbd> o <kbd>&uarr; &larr; &darr; &rarr;</kbd></p>
+      <p>Usa <kbd>&uarr; &larr; &darr; &rarr;</kbd></p>
       <div class="control-actions">
         <label class="size-picker" for="theme-select">
           <span>Tema</span>
@@ -122,6 +122,12 @@
             <div id="replay-arrow-overlay" class="replay-arrow-overlay hidden" aria-hidden="true">
               <div class="replay-arrow-shaft"></div>
               <div class="replay-arrow-head"></div>
+            </div>
+            <div id="manual-start-overlay" class="manual-start-overlay hidden">
+              <div class="manual-start-card">
+                <span class="manual-start-title">Empieza una NUEVA PARTIDA</span>
+                <span class="manual-start-copy">Pulsando el boton arriba a la derecha.</span>
+              </div>
             </div>
             <div id="pause-overlay" class="pause-overlay hidden">
               <span class="pause-title">PAUSA</span>
@@ -222,6 +228,7 @@
       </section>
       <section id="advanced-auth-entry" class="advanced-auth-entry hidden" aria-labelledby="advanced-auth-title">
         <div class="advanced-auth-card">
+          <button id="advanced-auth-x" type="button" class="stats-close-button advanced-auth-x" aria-label="Cerrar modo avanzado">X</button>
           <p class="initials-eyebrow">Modo avanzado</p>
           <h3 id="advanced-auth-title">Alias y PIN</h3>
           <div class="advanced-auth-fields">

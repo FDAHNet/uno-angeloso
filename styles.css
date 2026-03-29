@@ -395,6 +395,13 @@ h1 {
   text-shadow: 0 0 12px rgba(255, 214, 98, 0.18);
 }
 
+.credits-card {
+  background:
+    linear-gradient(180deg, rgba(255, 224, 130, 0.2), rgba(120, 77, 10, 0.22)),
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(0,0,0,0.08));
+  border-color: rgba(255, 216, 120, 0.28);
+}
+
 .credits-player {
   display: block;
   margin-top: 8px;
@@ -1054,6 +1061,48 @@ button:hover {
   animation: replay-arrow-pop 260ms ease;
 }
 
+.manual-start-overlay {
+  position: absolute;
+  inset: 16px;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at center, rgba(255,255,255,0.08), transparent 38%),
+    rgba(14, 10, 22, 0.48);
+  backdrop-filter: blur(4px);
+}
+
+.manual-start-card {
+  width: min(86%, 420px);
+  padding: 22px 20px;
+  border-radius: 24px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: linear-gradient(180deg, rgba(255,255,255,0.1), rgba(0,0,0,0.2));
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28), 0 0 24px var(--glow);
+}
+
+.manual-start-title,
+.manual-start-copy {
+  display: block;
+}
+
+.manual-start-title {
+  font-family: "Press Start 2P", "Space Grotesk", sans-serif;
+  font-size: clamp(1rem, 2.6vw, 1.35rem);
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--accent) 76%, white 24%);
+  text-shadow: 0 0 14px var(--glow);
+}
+
+.manual-start-copy {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
 .pause-overlay {
   position: absolute;
   inset: 16px;
@@ -1068,6 +1117,11 @@ button:hover {
   font-family: "Press Start 2P", "Space Grotesk", sans-serif;
   text-align: center;
   text-shadow: 0 0 12px rgba(255, 214, 98, 0.34);
+}
+
+#restart-button.awaiting-start {
+  animation: manual-start-blink 1s ease-in-out infinite;
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.1), 0 0 20px var(--glow);
 }
 
 .pause-title,
@@ -1642,11 +1696,18 @@ button:hover {
 }
 
 .advanced-auth-card {
+  position: relative;
   padding: 20px;
   border-radius: 24px;
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.26);
   background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0.08));
   border: 1px solid rgba(255,255,255,0.08);
+}
+
+.advanced-auth-x {
+  position: absolute;
+  top: 16px;
+  right: 16px;
 }
 
 .advanced-auth-fields {
@@ -2108,6 +2169,11 @@ button:hover {
 @keyframes aurora-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+@keyframes manual-start-blink {
+  0%, 100% { transform: translateY(0); filter: brightness(1); }
+  50% { transform: translateY(-1px); filter: brightness(1.12); }
 }
 
 @keyframes burst-ring {
