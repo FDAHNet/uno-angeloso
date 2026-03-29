@@ -364,18 +364,26 @@ h1 {
   min-height: 2.3em;
   font-family: "Press Start 2P", "Space Grotesk", sans-serif;
   line-height: 1.1;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
 }
 
+.score-card strong.is-mid {
+  font-size: 1.72rem;
+}
+
+.score-card strong.is-big {
+  font-size: 1.48rem;
+}
+
 .score-card strong.is-large {
-  font-size: 1.55rem;
+  font-size: 1.24rem;
 }
 
 .score-card strong.is-huge {
-  font-size: 1.18rem;
+  font-size: 0.98rem;
 }
 
 .controls {

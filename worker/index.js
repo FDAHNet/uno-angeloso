@@ -2,7 +2,7 @@ const GITHUB_OWNER = 'FDAHNet';
 const GITHUB_REPO = '2048';
 const GITHUB_LABEL = 'record';
 const DEFAULT_ALLOWED_ORIGIN = 'https://fdahnet.github.io';
-const DEFAULT_ALLOWED_REFERER_PREFIX = 'https://fdahnet.github.io/2048';
+const DEFAULT_ALLOWED_REFERER_PREFIX = 'https://fdahnet.github.io';
 const ALLOWED_MODES = new Set(['4x4', '5x5', '6x6', '8x8']);
 const ALLOWED_REPLAY_VERSIONS = new Set([1, 2]);
 const MAX_REQUEST_BYTES = 4_000_000;
@@ -276,3 +276,4 @@ function json(data, status, headers) {
     },
   });
 }
+

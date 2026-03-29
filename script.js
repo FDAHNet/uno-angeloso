@@ -1489,11 +1489,15 @@ function getDirectionLabel(direction) {
 
 function applyScoreSizing(element, value) {
   if (!element) return;
-  element.classList.remove("is-large", "is-huge");
+  element.classList.remove("is-mid", "is-big", "is-large", "is-huge");
   if (value >= 10000000) {
     element.classList.add("is-huge");
   } else if (value >= 1000000) {
     element.classList.add("is-large");
+  } else if (value >= 100000) {
+    element.classList.add("is-big");
+  } else if (value >= 10000) {
+    element.classList.add("is-mid");
   }
 }
 
