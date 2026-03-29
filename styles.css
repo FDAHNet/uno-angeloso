@@ -407,9 +407,9 @@ h1 {
 .credits-player {
   display: block;
   margin-top: auto;
-  min-height: 1.2em;
+  min-height: 1em;
   color: color-mix(in srgb, var(--accent) 62%, white 38%);
-  font-size: 0.72rem;
+  font-size: 0.66rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -421,18 +421,19 @@ h1 {
   display: grid;
   justify-items: center;
   align-items: center;
-  gap: 2px;
-  margin-top: -2px;
-  margin-bottom: 6px;
+  gap: 1px;
+  margin-top: -10px;
+  margin-bottom: 2px;
 }
 
 .advanced-mini-label {
-  font-size: 0.4rem;
-  line-height: 1.15;
-  letter-spacing: 0.06em;
+  font-size: 0.32rem;
+  line-height: 1.05;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
   text-align: center;
+  transform: scale(0.96);
 }
 
 .advanced-mini-button {
