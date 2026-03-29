@@ -1811,6 +1811,18 @@ function loadGameFromSlot(slotIndex) {
   closeInitialsEntry({ discard: true });
   restorePlayableSnapshot(slot.snapshot);
   setSaveSlotsPanelOpen(false);
+  const replay = decodeReplayPayload(slot.snapshot.currentReplay);
+  if (replay) {
+    void openReplayViewer(replay, {
+      initials: `S${slotIndex + 1}`,
+      mode: slot.mode,
+      score: slot.score,
+      displayDate: slot.displayDate,
+      replay,
+    });
+    setStatus(`Slot ${slotIndex + 1} cargado. Replay listo para Play.`);
+    return;
+  }
   setStatus(`Slot ${slotIndex + 1} cargado. Pulsa SEGUIR.`);
 }
 
