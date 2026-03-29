@@ -966,7 +966,7 @@ function renderAdminOverview() {
   }
 
   adminUsersBodyElement.innerHTML = players.map((player) => `
-    <tr>
+    <tr class="admin-clickable-row" data-admin-alias="${escapeHtml(player.alias)}">
       <td>${escapeHtml(player.alias)}</td>
       <td>${escapeHtml(formatAdminNumber(player.credits))}</td>
       <td>${escapeHtml(formatAdminNumber(player.gamesPlayed))}</td>
