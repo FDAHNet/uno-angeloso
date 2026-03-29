@@ -161,7 +161,7 @@ let advancedBetDraft = loadAdvancedBetDraft();
 let activeAdvancedRound = null;
 let advancedBetResultMessage = "";
 let awaitingManualStart = false;
-let advancedBetsVisible = advancedMode;
+let advancedBetsVisible = false;
 let advancedBetsCollapsed = false;
 let journalEntries = [];
 let currentReplay = null;
@@ -3529,6 +3529,10 @@ function startAttractMode() {
   stopHoleMode({ keepStatus: true });
   attractDismissed = false;
   awaitingManualStart = false;
+  advancedBetsVisible = false;
+  advancedBetsCollapsed = false;
+  closeAdvancedAuthEntry();
+  updateAdvancedModeUI();
   attractOverlayElement.classList.remove("hidden");
   startGame({ demo: true });
 }
@@ -3536,6 +3540,8 @@ function startAttractMode() {
 function enterManualStartMode() {
   awaitingManualStart = true;
   demoMode = false;
+  advancedBetsVisible = advancedMode;
+  advancedBetsCollapsed = false;
   gamePaused = false;
   pausedElapsedMs = 0;
   stopGameTimer();
