@@ -6040,10 +6040,7 @@ function nextMusicTrack() {
   localStorage.setItem(MUSIC_TRACK_INDEX_KEY, String(currentMusicTrackIndex));
   renderMusicInfo();
   if (musicEnabled) {
-    stopMusicPlayback();
-    window.setTimeout(() => {
-      if (musicEnabled) startMusicPlayback({ fadeOutFirst: false });
-    }, 120);
+    startMusicPlayback({ fadeOutFirst: true });
     setStatus(`Siguiente pista: ${MUSIC_TRACKS[currentMusicTrackIndex].name}.`);
   }
 }
