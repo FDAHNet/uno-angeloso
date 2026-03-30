@@ -486,6 +486,7 @@ let musicLoopTimeout = null;
 let musicTrackStartedAt = 0;
 let musicTrackDurationMs = 0;
 let musicTimerInterval = null;
+let activeMusicChannelGain = null;
 let recordSaved = false;
 let pendingGlobalRecord = null;
 let advancedMode = false;
@@ -5927,15 +5928,14 @@ function scheduleMusicTone(context, targetGain, { frequency, startAt, duration, 
   oscillator.stop(startAt + duration + 0.03);
 }
 
-function scheduleMusicTrack(context, track, startAt) {
+function scheduleMusicTrack(context, targetGain, track, startAt) {
   const barDuration = (60 / track.tempo) * 4;
   const stepDuration = barDuration / 8;
-  const target = audioMusicGain || audioMasterGain;
   track.progression.forEach((barDegree, barIndex) => {
     const barStart = startAt + (barIndex * barDuration);
     const chordDegrees = [barDegree, barDegree + 2, barDegree + 4];
     chordDegrees.forEach((degree, chordIndex) => {
-      scheduleMusicTone(context, target, {
+      scheduleMusicTone(context, targetGain, {
         frequency: midiToFrequency(getScaleMidi(track, degree, chordIndex === 2 ? 1 : 0)),
         startAt: barStart,
         duration: barDuration * 0.92,
@@ -5948,7 +5948,7 @@ function scheduleMusicTrack(context, track, startAt) {
       const stepStart = barStart + (step * stepDuration);
       const melodyDegree = track.melody[step % track.melody.length];
       if (melodyDegree !== null && melodyDegree !== undefined) {
-        scheduleMusicTone(context, target, {
+        scheduleMusicTone(context, targetGain, {
           frequency: midiToFrequency(getScaleMidi(track, barDegree + melodyDegree, 1)),
           startAt: stepStart,
           duration: stepDuration * 0.82,
@@ -5959,7 +5959,7 @@ function scheduleMusicTrack(context, track, startAt) {
 
       const bassDegree = track.bass[step % track.bass.length];
       if (bassDegree !== null && bassDegree !== undefined) {
-        scheduleMusicTone(context, target, {
+        scheduleMusicTone(context, targetGain, {
           frequency: midiToFrequency(getScaleMidi(track, bassDegree, -1)),
           startAt: stepStart,
           duration: stepDuration * 0.9,
@@ -5980,6 +5980,20 @@ function stopMusicPlayback() {
     musicLoopTimeout = null;
   }
   stopMusicTimer();
+  if (activeMusicChannelGain && audioContext) {
+    const now = audioContext.currentTime;
+    try {
+      activeMusicChannelGain.gain.cancelScheduledValues(now);
+      activeMusicChannelGain.gain.setValueAtTime(activeMusicChannelGain.gain.value, now);
+      activeMusicChannelGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+      window.setTimeout(() => {
+        try {
+          activeMusicChannelGain.disconnect();
+        } catch {}
+      }, 140);
+    } catch {}
+    activeMusicChannelGain = null;
+  }
   updateMusicGain();
 }
 
@@ -5992,7 +6006,11 @@ function startMusicPlayback() {
     const track = MUSIC_TRACKS[currentMusicTrackIndex % MUSIC_TRACKS.length];
     const token = musicPlaybackToken;
     const startAt = context.currentTime + 0.05;
-    const duration = scheduleMusicTrack(context, track, startAt);
+    const channelGain = context.createGain();
+    channelGain.gain.setValueAtTime(1, startAt);
+    channelGain.connect(audioMusicGain || audioMasterGain);
+    activeMusicChannelGain = channelGain;
+    const duration = scheduleMusicTrack(context, channelGain, track, startAt);
     musicTrackStartedAt = Date.now();
     musicTrackDurationMs = Math.round(duration * 1000);
     startMusicTimer();
