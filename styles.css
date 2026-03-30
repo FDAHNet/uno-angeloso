@@ -1771,12 +1771,13 @@ button:hover {
 
 .records-toggle-side-button {
   margin-top: auto;
-  min-width: 136px;
-  padding: 8px 10px;
+  margin-bottom: 0;
+  min-width: 126px;
+  padding: 7px 8px;
   background: linear-gradient(180deg, #f3f3f3 0%, #cfcfcf 100%);
   color: #121212;
   font-family: "Press Start 2P", "Arial Black", monospace;
-  font-size: 0.62rem;
+  font-size: 0.56rem;
   line-height: 1.05;
   letter-spacing: 0.04em;
   border-color: rgba(255, 255, 255, 0.7);
