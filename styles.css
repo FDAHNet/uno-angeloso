@@ -456,7 +456,7 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  overflow: visible;
+  overflow: hidden;
   z-index: 12;
 }
 
@@ -465,6 +465,7 @@ h1 {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
+  overflow: visible;
 }
 
 .advanced-bets-panel {
@@ -614,6 +615,7 @@ h1 {
   align-items: center;
   gap: 10px;
   position: relative;
+  isolation: isolate;
   z-index: 70;
   padding: 10px 14px;
   border-radius: 999px;
@@ -639,6 +641,7 @@ h1 {
   position: absolute;
   left: 50%;
   top: calc(100% + 12px);
+  z-index: 999;
   transform: translateX(-50%) translateY(6px);
   width: min(320px, 72vw);
   padding: 12px 14px;
@@ -655,7 +658,6 @@ h1 {
   visibility: hidden;
   pointer-events: none;
   transition: opacity 180ms ease, transform 180ms ease, visibility 180ms ease;
-  z-index: 999;
 }
 
 .advanced-toggle:hover .advanced-toggle-hint,
