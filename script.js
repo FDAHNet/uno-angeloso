@@ -3723,8 +3723,14 @@ function getTopScoreForMode(mode, category = getCurrentRecordCategory()) {
 }
 
 function mergeGlobalRecordIntoCache(record) {
-  if (!record?.mode || !globalRecordsCache[record.mode]) return;
+  if (!record?.mode) return;
   const category = normalizeRecordCategory(record.category);
+  if (!globalRecordsCache[record.mode]) {
+    globalRecordsCache[record.mode] = Object.fromEntries(RECORD_CATEGORIES.map((entry) => [entry, []]));
+  }
+  if (!globalRecordsCache[record.mode][category]) {
+    globalRecordsCache[record.mode][category] = [];
+  }
   const merged = [
     ...globalRecordsCache[record.mode][category],
     {
@@ -4093,9 +4099,15 @@ function submitGlobalRecord() {
     .then(() => {
       mergeGlobalRecordIntoCache(pendingGlobalRecord);
       renderGlobalRecords(globalRecordsCache);
+      const submittedMode = pendingGlobalRecord.mode;
       pendingGlobalRecord = null;
       setStatus("Record global enviado correctamente.");
-      fetchGlobalRecords();
+      window.setTimeout(() => {
+        fetchGlobalRecords();
+        if (expandedRecordsMode === submittedMode) {
+          renderGlobalRecords(globalRecordsCache);
+        }
+      }, 6000);
     })
     .catch((error) => {
       setStatus(`Error al enviar record: ${error.message}`);
