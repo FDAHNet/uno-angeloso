@@ -316,6 +316,10 @@ const advancedMiniExpandButton = document.getElementById("advanced-mini-expand-b
 const creditsPlayerElement = document.getElementById("credits-player");
 const bestScoreElement = document.getElementById("best-score");
 const bestScoreCardElement = document.getElementById("best-score-card");
+const recordCardModalElement = document.getElementById("record-card-modal");
+const recordCardModalContentElement = document.getElementById("record-card-modal-content");
+const recordCardModalSubtitleElement = document.getElementById("record-card-modal-subtitle");
+const closeRecordCardModalButton = document.getElementById("close-record-card-modal");
 const statusElement = document.getElementById("status");
 const holeSpeedControlElement = document.getElementById("hole-speed-control");
 const holeSpeedSelect = document.getElementById("hole-speed-select");
@@ -461,6 +465,7 @@ let recordsMiniTickerTimer = null;
 let recordsMiniTickerEntries = [];
 let recordsMiniTickerIndex = 0;
 let recordsMiniTickerAnimation = null;
+let recordCardModalOpen = false;
 let undoPanelOpen = false;
 let replayMode = false;
 let replayTimer = null;
@@ -4055,6 +4060,78 @@ function renderGlobalRecordsError() {
   syncExpandedRecordsUI();
 }
 
+function getCurrentBoardModeLabel() {
+  const size = Number(boardSizeSelect.value || boardSize);
+  return `${size}x${size}`;
+}
+
+function buildRecordCardModalSection(title, records) {
+  const section = document.createElement("section");
+  section.className = "record-card-category";
+
+  const heading = document.createElement("h4");
+  heading.className = "record-card-category-title";
+  heading.textContent = title;
+  section.appendChild(heading);
+
+  if (!records.length) {
+    const empty = document.createElement("div");
+    empty.className = "record-card-empty";
+    empty.textContent = "Sin records en esta liga.";
+    section.appendChild(empty);
+    return section;
+  }
+
+  const list = document.createElement("div");
+  list.className = "record-card-list";
+
+  records.slice(0, MAX_RECORDS_PER_MODE).forEach((record, index) => {
+    const row = document.createElement("div");
+    row.className = "record-card-row";
+
+    const rank = document.createElement("span");
+    rank.className = "record-card-rank";
+    rank.textContent = `#${index + 1}`;
+
+    const initials = document.createElement("span");
+    initials.textContent = record.initials;
+
+    const score = document.createElement("span");
+    score.className = "record-card-score";
+    score.textContent = formatAdminNumber(record.score);
+
+    const date = document.createElement("span");
+    date.className = "record-card-date";
+    date.textContent = record.displayDate;
+
+    row.append(rank, initials, score, date);
+    list.appendChild(row);
+  });
+
+  section.appendChild(list);
+  return section;
+}
+
+function renderRecordCardModal() {
+  if (!recordCardModalContentElement) return;
+  const mode = getCurrentBoardModeLabel();
+  const categoryRecords = globalRecordsCache?.[mode] || {};
+  recordCardModalContentElement.innerHTML = "";
+  recordCardModalContentElement.appendChild(buildRecordCardModalSection("Modo Normal", categoryRecords.normal || []));
+  recordCardModalContentElement.appendChild(buildRecordCardModalSection("Modo H.O.L.E.", categoryRecords.hole || []));
+  if (recordCardModalSubtitleElement) {
+    recordCardModalSubtitleElement.textContent = `Tablero ${mode}`;
+  }
+}
+
+function setRecordCardModalOpen(nextOpen) {
+  recordCardModalOpen = Boolean(nextOpen);
+  recordCardModalElement?.classList.toggle("hidden", !recordCardModalOpen);
+  if (recordCardModalOpen) {
+    renderRecordCardModal();
+  }
+}
+
 function renderGlobalRecords(recordsByMode) {
   globalRecordsCache = recordsByMode;
   globalRecordsLoaded = true;
@@ -4127,6 +4204,9 @@ function renderGlobalRecords(recordsByMode) {
   });
   syncExpandedRecordsUI();
   updateRecordsMiniTicker(recordsByMode);
+  if (recordCardModalOpen) {
+    renderRecordCardModal();
+  }
 }
 
 function clearRecordsMiniTickerTimer() {
@@ -4138,15 +4218,14 @@ function clearRecordsMiniTickerTimer() {
 
 function buildRecordsMiniTickerEntries(recordsByMode) {
   const flat = [];
-  GLOBAL_MODES.forEach((mode) => {
-    RECORD_CATEGORIES.forEach((category) => {
-      (recordsByMode?.[mode]?.[category] || []).forEach((record) => {
-        flat.push({
-          mode,
-          category,
-          initials: record.initials,
-          score: Number(record.score || 0),
-        });
+  const mode = getCurrentBoardModeLabel();
+  RECORD_CATEGORIES.forEach((category) => {
+    (recordsByMode?.[mode]?.[category] || []).forEach((record) => {
+      flat.push({
+        mode,
+        category,
+        initials: record.initials,
+        score: Number(record.score || 0),
       });
     });
   });
@@ -5692,6 +5771,13 @@ function handleKeydown(event) {
   ) {
     return;
   }
+  if (recordCardModalOpen) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setRecordCardModalOpen(false);
+    }
+    return;
+  }
   if (awaitingManualStart) {
     return;
   }
@@ -5905,6 +5991,10 @@ boardSizeSelect.addEventListener("change", () => {
   if (audioEnabled) void unlockAudio();
   attractDismissed = true;
   attractOverlayElement.classList.add("hidden");
+  updateRecordsMiniTicker(globalRecordsCache);
+  if (recordCardModalOpen) {
+    renderRecordCardModal();
+  }
   if (awaitingManualStart) {
     enterManualStartMode();
     return;
@@ -5994,6 +6084,19 @@ replayLastButton.addEventListener("click", () => {
   setReplayToIndex(replaySession.replay.turns.length);
 });
 toggleRecordsButton.addEventListener("click", () => setRecordsPanelOpen(!recordsPanelOpen));
+bestScoreCardElement?.addEventListener("click", () => setRecordCardModalOpen(true));
+bestScoreCardElement?.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    setRecordCardModalOpen(true);
+  }
+});
+closeRecordCardModalButton?.addEventListener("click", () => setRecordCardModalOpen(false));
+recordCardModalElement?.addEventListener("click", (event) => {
+  if (event.target === recordCardModalElement) {
+    setRecordCardModalOpen(false);
+  }
+});
 advancedModeToggle?.addEventListener("change", () => {
   void handleAdvancedModeToggle();
 });

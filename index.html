@@ -47,7 +47,7 @@
           <span>Puntuaci&oacute;n</span>
           <strong id="score">0</strong>
         </div>
-        <div id="best-score-card" class="score-card best-score-card">
+        <div id="best-score-card" class="score-card best-score-card" role="button" tabindex="0" aria-label="Ver records del tablero actual">
           <span>Record</span>
           <strong id="best-score">0</strong>
           <span class="records-toggle-mini-strip best-score-mini-strip" aria-hidden="true">
@@ -392,6 +392,19 @@
               <div id="global-records-list-8x8" class="records-list"></div>
             </section>
           </div>
+        </div>
+      </section>
+      <section id="record-card-modal" class="record-card-modal hidden" aria-labelledby="record-card-modal-title">
+        <div class="record-card-modal-sheet">
+          <div class="record-card-modal-header">
+            <div>
+              <p class="initials-eyebrow">Record</p>
+              <h3 id="record-card-modal-title">Records por tablero</h3>
+              <p id="record-card-modal-subtitle" class="record-card-modal-subtitle">Modo actual</p>
+            </div>
+            <button id="close-record-card-modal" type="button" class="stats-close-button" aria-label="Cerrar records del tablero">X</button>
+          </div>
+          <div id="record-card-modal-content" class="record-card-modal-content"></div>
         </div>
       </section>
     </section>
