@@ -11,6 +11,7 @@
 </head>
 <body>
   <div id="ui-fx-layer" class="ui-fx-layer" aria-hidden="true"></div>
+  <div id="system-announcement-layer" class="system-announcement-layer" aria-hidden="true"></div>
   <div class="crt-scanlines" aria-hidden="true"></div>
   <section id="attract-overlay" class="attract-overlay">
     <div class="attract-card">
@@ -80,6 +81,14 @@
           <span class="advanced-toggle-hint">El Modo Avanzado es jugar con Apuestas contra tu credito. Si se te acaba, ya no puedes jugar mas en modo avanzado.</span>
         </label>
         <button id="restart-button" type="button">Nueva partida</button>
+      </div>
+    </section>
+    <section class="system-ticker" aria-live="polite">
+      <div class="system-ticker-label">System</div>
+      <div class="system-ticker-window">
+        <div id="system-ticker-track" class="system-ticker-track">
+          <span id="system-ticker-text" class="system-ticker-text">Angeloso Arcade System listo para jugar.</span>
+        </div>
       </div>
     </section>
 

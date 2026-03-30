@@ -145,6 +145,9 @@ const ledgerSummaryGridElement = document.getElementById("ledger-summary-grid");
 const ledgerBodyElement = document.getElementById("ledger-body");
 const ledgerPanelCopyElement = document.getElementById("ledger-panel-copy");
 const uiFxLayerElement = document.getElementById("ui-fx-layer");
+const systemAnnouncementLayerElement = document.getElementById("system-announcement-layer");
+const systemTickerTrackElement = document.getElementById("system-ticker-track");
+const systemTickerTextElement = document.getElementById("system-ticker-text");
 const starfieldElement = document.getElementById("starfield");
 const attractOverlayElement = document.getElementById("attract-overlay");
 const startAttractButton = document.getElementById("start-attract-button");
@@ -229,6 +232,8 @@ let gameSessionId = 0;
 let expandedRecordsMode = null;
 let replayArrowRotation = 0;
 let statsPanelOpen = false;
+let creditsDisplayValue = Number(advancedCredits || 0);
+let creditsAnimationFrame = null;
 let adminPanelOpen = false;
 let adminPanelLoading = false;
 let adminOverview = null;
@@ -539,16 +544,55 @@ function updateAdvancedModeUI() {
   if (advancedBetsCollapseButton) {
     advancedBetsCollapseButton.textContent = advancedBetsCollapsed ? "Expandir" : "Encoger";
   }
-  if (creditsElement) {
-    creditsElement.textContent = String(Math.max(0, Math.trunc(advancedCredits)));
-    applyScoreSizing(creditsElement, advancedCredits);
-  }
+  animateCreditsDisplay(advancedCredits);
   if (creditsPlayerElement) {
     creditsPlayerElement.textContent = advancedMode
       ? (advancedPlayerAuth?.alias || "Alias pendiente")
       : "";
   }
   renderAdvancedBetsPanel();
+}
+
+function animateCreditsDisplay(targetValue) {
+  if (!creditsElement) return;
+  const target = Math.max(0, Math.trunc(Number(targetValue) || 0));
+  if (creditsAnimationFrame) {
+    window.cancelAnimationFrame(creditsAnimationFrame);
+    creditsAnimationFrame = null;
+  }
+
+  const start = Number(creditsDisplayValue || 0);
+  if (start === target) {
+    creditsElement.textContent = String(target);
+    applyScoreSizing(creditsElement, target);
+    return;
+  }
+
+  const startedAt = performance.now();
+  const duration = 520;
+  creditsElement.classList.remove("credits-pulse-up", "credits-pulse-down");
+  void creditsElement.offsetWidth;
+  creditsElement.classList.add(target > start ? "credits-pulse-up" : "credits-pulse-down");
+
+  const step = (now) => {
+    const progress = Math.min(1, (now - startedAt) / duration);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const nextValue = Math.round(start + ((target - start) * eased));
+    creditsDisplayValue = nextValue;
+    creditsElement.textContent = String(nextValue);
+    applyScoreSizing(creditsElement, nextValue);
+    if (progress < 1) {
+      creditsAnimationFrame = window.requestAnimationFrame(step);
+    } else {
+      creditsDisplayValue = target;
+      creditsElement.textContent = String(target);
+      applyScoreSizing(creditsElement, target);
+      creditsAnimationFrame = null;
+      window.setTimeout(() => creditsElement.classList.remove("credits-pulse-up", "credits-pulse-down"), 420);
+    }
+  };
+
+  creditsAnimationFrame = window.requestAnimationFrame(step);
 }
 
 function renderAdvancedBetsPanel() {
@@ -877,6 +921,9 @@ function setGameOverOverlay(visible, reason = "") {
   }
   if (gameOverReasonElement) {
     gameOverReasonElement.textContent = visible ? reason : "";
+  }
+  if (visible) {
+    showSystemAnnouncement(reason === "BY USER" ? "Partida cerrada por el jugador" : "GAME OVER · Sin movimientos", "danger");
   }
   updateStatsButton();
 }
@@ -1568,6 +1615,7 @@ function triggerTimeMilestoneFx(minutes) {
 
   playTimeMilestoneSound();
   setStatus(`${minutes} minutos de partida.`);
+  showSystemAnnouncement(`${minutes} MINUTOS`, "accent");
 }
 
 function stopDemoMode() {
@@ -2245,6 +2293,13 @@ function setRecordsPanelOpen(nextOpen) {
 
 function setStatus(message) {
   statusElement.textContent = message;
+  const normalized = String(message || "").trim();
+  const tone = /error|no pude|fall/i.test(normalized)
+    ? "danger"
+    : /record|h\.o\.l\.e|demo|pausa|replay/i.test(normalized)
+      ? "accent"
+      : "normal";
+  setTickerMessage(normalized, tone);
 }
 
 function setAdminPanelStatus(message) {
@@ -2898,6 +2953,7 @@ function maybeCelebrateLiveGlobalRecord() {
     activateBestScoreCelebration();
     playGlobalRecordFanfare();
     setStatus("Nuevo record global en juego.");
+    showSystemAnnouncement("Nuevo record global", "record");
   }
 }
 
@@ -3113,6 +3169,44 @@ function isRecordScore(score) {
   return categoryRecords.some((record) => score > record.score);
 }
 
+function formatBoardCoordinate(row, col) {
+  return `${String.fromCharCode(65 + col)}${row + 1}`;
+}
+
+function setTickerMessage(message, tone = "normal") {
+  if (!systemTickerTextElement || !systemTickerTrackElement) return;
+  const text = String(message || "").trim() || "Angeloso Arcade System listo para jugar.";
+  systemTickerTextElement.textContent = text;
+  systemTickerTrackElement.dataset.tone = tone;
+  systemTickerTrackElement.style.animation = "none";
+  void systemTickerTrackElement.offsetWidth;
+  systemTickerTrackElement.style.animation = "";
+}
+
+function showSystemAnnouncement(message, tone = "accent") {
+  if (!systemAnnouncementLayerElement || !message) return;
+  const announcement = document.createElement("div");
+  announcement.className = `system-announcement tone-${tone}`;
+  announcement.textContent = message;
+  systemAnnouncementLayerElement.appendChild(announcement);
+  announcement.addEventListener("animationend", () => announcement.remove(), { once: true });
+}
+
+function highlightBoardCoordinates(rows = [], cols = []) {
+  document.querySelectorAll(".board-coord-label.is-hot").forEach((label) => label.classList.remove("is-hot"));
+  rows.forEach((row) => {
+    document.querySelectorAll(`.board-coords-col .board-coord-label[data-row="${row}"]`).forEach((label) => label.classList.add("is-hot"));
+  });
+  cols.forEach((col) => {
+    document.querySelectorAll(`.board-coords-row .board-coord-label[data-col="${col}"]`).forEach((label) => label.classList.add("is-hot"));
+  });
+  if (rows.length || cols.length) {
+    window.setTimeout(() => {
+      document.querySelectorAll(".board-coord-label.is-hot").forEach((label) => label.classList.remove("is-hot"));
+    }, 820);
+  }
+}
+
 function renderBoardCoordinates() {
   const letters = Array.from({ length: boardSize }, (_, index) => String.fromCharCode(65 + index));
   const numbers = Array.from({ length: boardSize }, (_, index) => String(index + 1));
@@ -3126,6 +3220,7 @@ function renderBoardCoordinates() {
     letters.forEach((letter) => {
       const cell = document.createElement("span");
       cell.className = "board-coord-label";
+      cell.dataset.col = String(letters.indexOf(letter));
       cell.textContent = letter;
       target.appendChild(cell);
     });
@@ -3138,6 +3233,7 @@ function renderBoardCoordinates() {
     numbers.forEach((number) => {
       const cell = document.createElement("span");
       cell.className = "board-coord-label";
+      cell.dataset.row = String(Number(number) - 1);
       cell.textContent = number;
       target.appendChild(cell);
     });
@@ -3221,17 +3317,25 @@ function renderJournal() {
 
     turns.forEach((turn, index) => {
       const item = document.createElement("div");
-      item.className = "journal-entry";
+      item.className = `journal-entry is-replay-direction-${turn.move}`;
       item.dataset.replayTurn = String(index + 1);
       if (index + 1 === replaySession.index) item.classList.add("is-replay-active");
 
       const time = document.createElement("time");
       time.textContent = `Paso ${index + 1}`;
 
+      const badge = document.createElement("span");
+      badge.className = "journal-entry-badge";
+      badge.textContent = ({ up: "↑", down: "↓", left: "←", right: "→" }[turn.move]) || "•";
+
       const text = document.createElement("strong");
       text.textContent = `Pulso ${getDirectionLabel(turn.move)}`;
 
-      item.append(time, text);
+      const meta = document.createElement("small");
+      meta.className = "journal-entry-meta";
+      meta.textContent = turn.spawn ? `Aparece en ${formatBoardCoordinate(turn.spawn.row, turn.spawn.col)}` : "Sin spawn";
+
+      item.append(time, badge, text, meta);
       journalListElement.appendChild(item);
     });
     return;
@@ -3250,16 +3354,24 @@ function renderJournal() {
 
   journalEntries.forEach((entry) => {
     const item = document.createElement("div");
-    item.className = "journal-entry";
+    item.className = `journal-entry tone-${entry.tone || "normal"}`;
     item.dataset.entryId = entry.id;
 
     const time = document.createElement("time");
     time.textContent = entry.timeText;
 
+    const badge = document.createElement("span");
+    badge.className = "journal-entry-badge";
+    badge.textContent = entry.icon || "★";
+
     const text = document.createElement("strong");
     text.textContent = `Bloque ${entry.value} creado`;
 
-    item.append(time, text);
+    const meta = document.createElement("small");
+    meta.className = "journal-entry-meta";
+    meta.textContent = `Casilla ${formatBoardCoordinate(entry.row, entry.col)} · ${entry.value >= 512 ? "Super logro" : "Fusiones altas"}`;
+
+    item.append(time, badge, text, meta);
     journalListElement.appendChild(item);
   });
 }
@@ -3271,6 +3383,8 @@ function addJournalEntry(value, row, col) {
     value,
     row,
     col,
+    icon: value >= 1024 ? "✦" : value >= 512 ? "◆" : value >= 256 ? "⬢" : "▲",
+    tone: value >= 1024 ? "legend" : value >= 512 ? "epic" : value >= 256 ? "rare" : "normal",
     timeText: now.toLocaleTimeString("es-ES", {
       hour: "2-digit",
       minute: "2-digit",
@@ -3740,6 +3854,7 @@ function openInitialsEntry(score) {
   startInitialsTimer();
   persistSessionSnapshot();
   setStatus(isGlobalTopScore ? "Nuevo record global. Introduce tus iniciales." : "Nuevo record. Introduce tus iniciales.");
+  showSystemAnnouncement(isGlobalTopScore ? "Anota el nuevo record global" : "Anota tu nuevo record", isGlobalTopScore ? "record" : "accent");
 }
 
 function closeInitialsEntry(options = {}) {
@@ -4090,6 +4205,8 @@ function replayMove(direction, spawn, options = {}) {
   const traversed = getTraversal(direction);
   const mergedTargets = new Set();
   const mergeGhosts = [];
+  const touchedRows = new Set();
+  const touchedCols = new Set();
   let gained = 0;
 
   resetFlags();
@@ -4131,22 +4248,34 @@ function replayMove(direction, spawn, options = {}) {
         target.value = tile.value * 2;
         target.justMerged = true;
         mergedTargets.add(targetKey);
+        touchedRows.add(target.row);
+        touchedCols.add(target.col);
         gained += target.value;
       } else {
         tile.row = currentRow;
         tile.col = currentCol;
         gameState.cells[currentRow][currentCol] = tile;
+        if (currentRow !== row || currentCol !== col) {
+          touchedRows.add(currentRow);
+          touchedCols.add(currentCol);
+        }
       }
     }
   }
 
   gameState.cells = normalizeCells();
   gameState.score += gained;
-  if (spawn) insertReplaySpawn(spawn);
+  if (spawn) {
+    insertReplaySpawn(spawn);
+    touchedRows.add(spawn.row);
+    touchedCols.add(spawn.col);
+  }
   if (animate) {
     render();
     mergeGhosts.forEach((ghost) => createMergeGhost(ghost));
+    if (spawn) createReplaySpawnPulse(spawn.row, spawn.col);
   }
+  highlightBoardCoordinates([...touchedRows], [...touchedCols]);
 }
 
 function initializeReplayBoard(replay) {
@@ -4527,6 +4656,8 @@ function move(direction) {
   const mergedTargets = new Set();
   const epicBursts = [];
   const mergeGhosts = [];
+  const touchedRows = new Set();
+  const touchedCols = new Set();
 
   for (const major of traversed) {
     for (const minor of traversed) {
@@ -4566,6 +4697,8 @@ function move(direction) {
         target.isNew = false;
         updateScore(newValue);
         mergedTargets.add(targetKey);
+        touchedRows.add(target.row);
+        touchedCols.add(target.col);
         moved = true;
         hadMerge = true;
         highestMerge = Math.max(highestMerge, newValue);
@@ -4577,7 +4710,11 @@ function move(direction) {
         tile.row = currentRow;
         tile.col = currentCol;
         gameState.cells[currentRow][currentCol] = tile;
-        if (currentRow !== row || currentCol !== col) moved = true;
+        if (currentRow !== row || currentCol !== col) {
+          moved = true;
+          touchedRows.add(currentRow);
+          touchedCols.add(currentCol);
+        }
       }
     }
   }
@@ -4612,7 +4749,12 @@ function move(direction) {
         atMs: Date.now() - Date.parse(currentReplay.startedAt),
       });
     }
+    if (spawnedTile) {
+      touchedRows.add(spawnedTile.row);
+      touchedCols.add(spawnedTile.col);
+    }
     render();
+    highlightBoardCoordinates([...touchedRows], [...touchedCols]);
     maybeCelebrateLiveGlobalRecord();
     pushHistoryEntry(direction);
     persistSessionSnapshot();
@@ -4625,6 +4767,7 @@ function move(direction) {
     if (!gameState.won && hasTileAtLeast(2048)) {
       gameState.won = true;
       setStatus(demoMode ? "MODO DEMO" : "Llegaste a 2048. Puedes seguir jugando.");
+      if (!demoMode) showSystemAnnouncement("2048 desbloqueado", "accent");
     } else if (!canMove()) {
       if (!demoMode) {
         endGameByMachine();
@@ -4686,6 +4829,19 @@ function createEpicBurst(row, col, value) {
   }
 
   ring.addEventListener("animationend", () => ring.remove(), { once: true });
+}
+
+function createReplaySpawnPulse(row, col) {
+  const { x, y } = getOffset(row, col);
+  const tileSize = getTileSize();
+  const pulse = document.createElement("div");
+  pulse.className = "replay-spawn-pulse";
+  pulse.style.left = `${x}px`;
+  pulse.style.top = `${y}px`;
+  pulse.style.width = `${tileSize}px`;
+  pulse.style.height = `${tileSize}px`;
+  fxLayer.appendChild(pulse);
+  pulse.addEventListener("animationend", () => pulse.remove(), { once: true });
 }
 
 function createMergeGhost({ fromRow, fromCol, toRow, toCol, value }) {
@@ -4790,9 +4946,13 @@ function playBlockedSound() {
 
 function playMergeSound(value) {
   const boost = Math.min(0.14, 0.07 + Math.log2(value) * 0.005);
-  playTone({ frequency: 330, duration: 0.08, type: "triangle", volume: boost, when: 0 });
-  playTone({ frequency: 495, duration: 0.12, type: "sine", volume: boost * 0.82, when: 0.035 });
-  playTone({ frequency: 660, duration: 0.09, type: "triangle", volume: boost * 0.55, when: 0.06 });
+  const root = value >= 512 ? 392 : value >= 128 ? 349.23 : 330;
+  playTone({ frequency: root, duration: 0.08, type: value >= 256 ? "square" : "triangle", volume: boost, when: 0 });
+  playTone({ frequency: root * 1.5, duration: 0.12, type: "sine", volume: boost * 0.82, when: 0.035 });
+  playTone({ frequency: root * 2, duration: 0.09, type: value >= 1024 ? "square" : "triangle", volume: boost * 0.55, when: 0.06 });
+  if (value >= 256) {
+    playTone({ frequency: root * 2.5, duration: 0.16, type: "triangle", volume: boost * 0.42, when: 0.09, slideTo: root * 2.8 });
+  }
 }
 
 function playFanfare128() {
@@ -5235,6 +5395,7 @@ renderAdminOverview();
 updateAdvancedModeUI();
 updateManualStartUI();
 updatePauseButton();
+setTickerMessage("Angeloso Arcade System listo para jugar.", "accent");
 void loadAdvancedBetDefinitionsFromWorker();
 setRecordsPanelOpen(false);
 closeInitialsEntry();
