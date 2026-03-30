@@ -75,6 +75,230 @@ const DEFAULT_ADVANCED_BET_DEFINITIONS = [
     active: true,
   },
 ];
+const COMMENTARY_BANK = {
+  kickoff: [
+    "Arranca la partida en {mode} y {player} ya pisa el tablero con decision.",
+    "Suena el silbato digital: {player} mueve la primera ficha.",
+    "Comienza el duelo y {player} sale sin especular.",
+    "El publico virtual se pone en pie: empieza {player}.",
+    "Ya rueda el 2048 y {player} busca abrir huecos desde el arranque.",
+    "Primeras jugadas para {player} en este tablero {mode}.",
+    "Se abre el telon arcade: {player} entra en escena.",
+    "Todo listo, tablero limpio y {player} al mando.",
+    "Empieza el choque y {player} quiere imponer ritmo desde ya.",
+    "Se pone en marcha el sistema Angeloso con {player} en control.",
+    "Balon al centro, fichas al aire: comienza {player}.",
+    "Primer compas de la partida y {player} ya tantea el terreno.",
+    "Rueda el marcador, {player} toma posiciones.",
+    "Arranque serio de {player} sobre la mesa {mode}.",
+    "Ya hay movimiento en cabina: {player} inicia la ofensiva.",
+    "La partida echa a andar y {player} busca orden desde el inicio.",
+    "Todo preparado, primera maniobra de {player}.",
+    "Se encienden los focos y {player} comienza su ruta al record.",
+    "Comienza el partido de las fusiones: {player} entra en juego.",
+    "Ya esta en marcha la partida y {player} no quiere perder ni un turno."
+  ],
+  pressure: [
+    "{player} sigue empujando, ya van {moves} jugadas de presion constante.",
+    "Partido largo y serio de {player}, ni un hueco regalado.",
+    "{player} cocina la posicion con paciencia de veterano.",
+    "Se nota la tension, pero {player} mantiene la cabeza fria.",
+    "{player} mueve con calma, esperando la grieta correcta.",
+    "No hay pausa en la cabina: {player} sigue construyendo.",
+    "{player} mantiene la estructura y no pierde el compas.",
+    "La partida entra en fase tactica y {player} no pestañea.",
+    "{player} aprieta sin romper el plan de juego.",
+    "Hay partido, y {player} lo está leyendo bastante bien.",
+    "Sigue la batalla posicional, {player} no regala columnas.",
+    "{player} aguanta la presion y sigue ordenando el tablero.",
+    "Cada movimiento pesa, pero {player} responde con temple.",
+    "{player} sigue trabajando la jugada como quien mueve en el minuto 88.",
+    "No hay fuegos artificiales ahora, solo control de {player}.",
+    "Se juega fino en esta fase y {player} lo sabe.",
+    "{player} baja pulsaciones, limpia el tablero y sigue.",
+    "El partido se cierra por momentos, pero {player} encuentra aire.",
+    "{player} esta en modo gestion, esperando la siguiente explosion.",
+    "Sigue el esfuerzo silencioso de {player}, que no suelta la partida."
+  ],
+  score: [
+    "{player} supera los {score} puntos y sigue con margen.",
+    "Atencion al marcador: {player} ya pisa los {score} puntos.",
+    "{player} suma y suma, el tanteo ya se va a {score}.",
+    "El casillero sube con fuerza: {player} alcanza {score} puntos.",
+    "{player} cruza otro liston, ya van {score} puntos en la libreta.",
+    "Marcador creciente para {player}: {score} puntos y contando.",
+    "{player} mete otra marcha en el tanteo, {score} puntos.",
+    "La puntuacion responde al trabajo de {player}: {score}.",
+    "{player} encuentra premio en el marcador, ya son {score} puntos.",
+    "Subidon en la tabla: {player} se instala en {score} puntos.",
+    "{player} sigue llenando el marcador, ya ronda los {score}.",
+    "Se enciende el contador: {player} alcanza {score} puntos.",
+    "{player} mete otro parcial notable y pone {score} en el marcador.",
+    "El partido tambien se gana por puntos, y {player} ya tiene {score}.",
+    "{player} pasa otra frontera estadistica: {score} puntos.",
+    "El tanteo sube para {player}, que ya firma {score}.",
+    "{player} consolida una cifra seria: {score} puntos.",
+    "La libreta del comentarista apunta {score} para {player}.",
+    "{player} mantiene la cadencia y eleva la cuenta hasta {score}.",
+    "Ojo al panel: {player} ya mueve la partida en {score} puntos."
+  ],
+  tile128: [
+    "{player} encuentra un {value} y el publico empieza a creer.",
+    "Ya aparece un {value} para {player}; primer golpe serio.",
+    "{player} firma un {value} que cambia el tono del partido.",
+    "Atencion, {player} acaba de levantar un {value}.",
+    "Se abre el tablero para {player} con ese {value}.",
+    "{player} conecta una fusion buena y sube hasta {value}.",
+    "Primer gran aviso de {player}: aparece un {value}.",
+    "{player} ya planta un {value} sobre la mesa.",
+    "Se empieza a cocinar algo grande: {player} saca un {value}.",
+    "{player} rompe la barrera media con un {value}.",
+    "Buen giro de guion: {player} encuentra un {value}.",
+    "Ese {value} de {player} ya da otro aire a la partida.",
+    "Sube el techo de {player}: ya hay un {value}.",
+    "{player} firma una maniobra limpia y deja un {value}.",
+    "Primer bloque de respeto para {player}: {value}.",
+    "{player} coloca un {value} y manda un mensaje claro.",
+    "La grada virtual reacciona: {player} ya tiene un {value}.",
+    "{player} empieza a enseñar los dientes con ese {value}.",
+    "Ya hay una pieza seria para {player}, concretamente un {value}.",
+    "{player} mete el primer zarpazo grande: {value}."
+  ],
+  tile256: [
+    "{player} acaba de lograr un {value}, y esto ya va en serio.",
+    "Atencion porque {player} firma un {value} de mucho peso.",
+    "Ese {value} de {player} ya huele a noche grande.",
+    "{player} sube un escalon clave con un {value}.",
+    "Se encienden las luces largas: {player} alcanza el {value}.",
+    "{player} hace despegar la partida con un {value}.",
+    "Ya tenemos un {value} en manos de {player}.",
+    "{player} pisa fuerte y deja un {value} en tablero.",
+    "Momento importante: {player} levanta un {value}.",
+    "{player} convierte una buena secuencia en un {value}.",
+    "Ese {value} de {player} cambia bastante el paisaje.",
+    "{player} da un golpe de autoridad con un {value}.",
+    "Aparece un {value} y {player} gana voz en el partido.",
+    "{player} ya juega con una ficha de alto voltaje: {value}.",
+    "El tablero se inclina un poco hacia {player} con ese {value}.",
+    "{player} firma un {value} que obliga a mirar el marcador.",
+    "Buen momento para {player}, que ya presume de {value}.",
+    "{player} levanta un {value} y la grada se viene arriba.",
+    "Ya hay pieza premium para {player}: {value}.",
+    "{player} encuentra oro puro en forma de {value}."
+  ],
+  tile512: [
+    "{player} coloca un {value} y el partido cambia de categoria.",
+    "Ya tenemos un {value}; lo de {player} va muy en serio.",
+    "{player} firma un {value} de quilates mayores.",
+    "Explota la cabina: {player} acaba de levantar un {value}.",
+    "Ese {value} de {player} ya mete miedo en la tabla.",
+    "{player} rompe otra barrera y aparece el {value}.",
+    "El tablero aplaude: {player} ya tiene un {value}.",
+    "{player} transforma paciencia en un {value} monumental.",
+    "Hay salto de calidad: {player} conecta un {value}.",
+    "{player} clava un {value} que dispara las expectativas.",
+    "Tremendo paso adelante de {player} con ese {value}.",
+    "{player} pone una ficha {value} y ahora el techo sube mucho.",
+    "Atencion al dato: {player} ya controla un {value}.",
+    "{player} lanza un aviso potente con ese {value}.",
+    "La partida toma otro vuelo tras el {value} de {player}.",
+    "Ese {value} de {player} puede marcar un antes y un despues.",
+    "{player} ya juega palabras mayores: {value}.",
+    "Se canta gol arcade en la grada: {player} sube a {value}.",
+    "{player} alcanza el {value} y entra en la zona noble.",
+    "Partidazo de {player}, que ya ha fabricado un {value}."
+  ],
+  tile1024: [
+    "{player} roza la leyenda con un {value}.",
+    "Aparece un {value} y esto ya es terreno de elite para {player}.",
+    "{player} acaba de clavar un {value} historico.",
+    "Que barbaridad de {player}: ya hay un {value} en juego.",
+    "Se abre la puerta grande, {player} alcanza el {value}.",
+    "{player} se asoma al cielo del tablero con un {value}.",
+    "Momento de oro: {player} firma un {value} monumental.",
+    "{player} empuja la partida a otra dimension con un {value}.",
+    "Tremendo golpe de escena, {player} llega al {value}.",
+    "Esto ya es otra cosa: {player} levanta un {value}.",
+    "{player} acaricia la gloria con ese {value}.",
+    "Un {value} para {player}; el publico no se lo cree.",
+    "{player} construye una pieza de museo: {value}.",
+    "Ya está aqui el {value}, y lo firma {player}.",
+    "{player} mete la partida en zona legendaria con un {value}.",
+    "El tablero se rinde por un instante ante el {value} de {player}.",
+    "{player} pone un {value} y cambia la historia del turno.",
+    "Nivel altisimo de {player}, que ya fabrica un {value}.",
+    "Hay aroma de record cuando {player} alcanza el {value}.",
+    "{player} hace temblar la mesa con un {value}."
+  ],
+  tile2048: [
+    "{player} acaba de lograr un {value}; esto es palabra mayor.",
+    "Se canta la gloria arcade: {player} llega al {value}.",
+    "Objetivo cumplido para {player}, ya aparece el {value}.",
+    "{player} rompe la puerta principal con un {value}.",
+    "El estadio digital se viene abajo: {player} consigue el {value}.",
+    "Ya esta aqui el {value}, firmado por {player}.",
+    "{player} alcanza el {value} y entra en el cuadro de honor.",
+    "Momento historico: {player} planta un {value} en tablero.",
+    "La partida ya es memorable: {player} llega al {value}.",
+    "{player} toca techo clasico y lo hace con un {value}.",
+    "Se desata la fiesta arcade: {player} corona el {value}.",
+    "{player} alcanza la cifra sagrada, el {value}.",
+    "Pieza de leyenda para {player}: {value}.",
+    "{player} firma el gran numero del juego: {value}.",
+    "Eso no se ve todos los dias: {player} logra un {value}.",
+    "{player} ya tiene el {value}; noche grande en cabina.",
+    "Se escribe una pagina dorada, {player} sube a {value}.",
+    "{player} encuentra la cima tradicional del tablero: {value}.",
+    "Gol de museo en Angeloso: {player} fabrica un {value}.",
+    "{player} completa el gran hito con un {value}."
+  ],
+  record: [
+    "{player} se pone por delante en la pelea por el record de {mode}.",
+    "Nuevo lider provisional en {mode}: {player}.",
+    "{player} está batiendo el record conocido de esta modalidad.",
+    "Ojo porque {player} ya manda en la tabla de {mode}.",
+    "El record de {mode} se tambalea con {player}.",
+    "{player} toma la pole del ranking y no mira atras.",
+    "Cambio de liderato: {player} se adueña del record.",
+    "{player} firma una marca de referencia en {mode}.",
+    "Se mueve la historia del ranking gracias a {player}.",
+    "{player} ya juega por encima del mejor registro conocido.",
+    "Tenemos nuevo liston en {mode}, y lo pone {player}.",
+    "{player} empuja el record a otra altura.",
+    "El marcador de honor cambia de manos: manda {player}.",
+    "{player} se instala en cabeza con una partida enorme.",
+    "Atencion al archivo historico: {player} va primero.",
+    "{player} pisa territorio de record y no afloja.",
+    "La mejor marca de {mode} ahora mira a {player}.",
+    "Se reescribe la parte alta del ranking con {player}.",
+    "{player} acaba de poner un nuevo techo competitivo.",
+    "Todo apunta a record grande para {player} en {mode}."
+  ],
+  gameOverUser: [
+    "{player} baja la persiana por decision propia con {score} puntos.",
+    "Final por mano del jugador: {player} cierra la partida en {score}.",
+    "{player} decide cerrar el telon con {score} puntos en el bolsillo.",
+    "Se acabo por decision de {player}; marcador final de {score}.",
+    "{player} firma el cierre voluntario con {score} puntos.",
+    "Punto final elegido por {player}, que se marcha con {score}.",
+    "{player} da por buena la funcion y termina en {score}.",
+    "Cierre controlado de {player}; el marcador se queda en {score}.",
+    "{player} se lleva la partida hasta {score} y decide detenerla.",
+    "Final voluntario para {player}, que baja el telon en {score} puntos."
+  ],
+  gameOverMachine: [
+    "La maquina dice basta: {player} termina en {score} puntos.",
+    "Sin mas movimientos para {player}; final en {score}.",
+    "El tablero se cerró para {player}, que concluye con {score}.",
+    "Se acabaron los caminos y {player} deja un {score} final.",
+    "Final por atasco total: {player} cierra en {score} puntos.",
+    "La defensa del tablero resiste y frena a {player} en {score}.",
+    "No quedo aire para una mas; {player} termina con {score}.",
+    "La partida se seca para {player}, marcador final {score}.",
+    "No hubo salida posible y {player} se queda en {score} puntos.",
+    "Cae el telon por falta de movimientos, con {player} cerrando en {score}."
+  ],
+};
 
 const boardElement = document.getElementById("board");
 const fxLayer = document.getElementById("fx-layer");
@@ -247,6 +471,8 @@ let creditsDisplayValue = Number(advancedCredits || 0);
 let creditsAnimationFrame = null;
 let currentTickerMessage = "";
 let currentTickerTone = "normal";
+let commentaryLastIndexByCategory = {};
+let lastCommentaryScoreBucket = 0;
 let adminPanelOpen = false;
 let adminPinGateOpen = false;
 let adminPanelLoading = false;
@@ -938,6 +1164,7 @@ function setGameOverOverlay(visible, reason = "") {
   }
   if (visible) {
     showSystemAnnouncement(reason === "BY USER" ? "Partida cerrada por el jugador" : "GAME OVER · Sin movimientos", "danger");
+    announceMatchCommentary(reason === "BY USER" ? "gameOverUser" : "gameOverMachine", { score: gameState.score }, "danger");
   }
   updateStatsButton();
 }
@@ -2228,6 +2455,8 @@ function startGame(options = {}) {
   advancedBetResultMessage = "";
   moveHistory = [];
   moveSequence = 0;
+  lastCommentaryScoreBucket = 0;
+  commentaryLastIndexByCategory = {};
   globalRecordFanfarePlayed = false;
   globalRecordsLoaded = false;
   clearBestScoreCelebration();
@@ -2263,6 +2492,9 @@ function startGame(options = {}) {
     fetchGlobalRecords();
   }
   setStatus(demoMode ? "MODO DEMO" : "");
+  if (!demoMode) {
+    announceMatchCommentary("kickoff", { mode: `${boardSize}x${boardSize}` }, "accent");
+  }
   if (demoMode) scheduleDemoMove();
 }
 
@@ -2359,6 +2591,7 @@ function setStatus(message) {
   statusElement.textContent = message;
   const normalized = String(message || "").trim();
   if (!normalized) return;
+  if (/h\.o\.l\.e/i.test(normalized)) return;
   const tone = /error|no pude|fall/i.test(normalized)
     ? "danger"
     : /record|h\.o\.l\.e|demo|pausa|replay/i.test(normalized)
@@ -3044,6 +3277,7 @@ function maybeCelebrateLiveGlobalRecord() {
     activateBestScoreCelebration();
     playGlobalRecordFanfare();
     setStatus("Nuevo record global en juego.");
+    announceMatchCommentary("record", { mode, score: gameState.score }, "record");
     showSystemAnnouncement("Nuevo record global", "record");
   }
 }
@@ -3262,6 +3496,39 @@ function isRecordScore(score) {
 
 function formatBoardCoordinate(row, col) {
   return `${String.fromCharCode(65 + col)}${row + 1}`;
+}
+
+function getCommentaryPlayerName() {
+  return advancedPlayerAuth?.alias || "el jugador invitado";
+}
+
+function formatCommentaryTemplate(template, data = {}) {
+  return String(template || "").replace(/\{(\w+)\}/g, (_, key) => {
+    if (key === "player") return getCommentaryPlayerName();
+    if (key === "score") return formatAdminNumber(data.score ?? gameState.score);
+    if (key === "moves") return formatAdminNumber(data.moves ?? moveSequence);
+    if (key === "mode") return data.mode || `${boardSize}x${boardSize}`;
+    if (key === "value") return String(data.value ?? "");
+    return String(data[key] ?? "");
+  });
+}
+
+function pickCommentaryLine(category) {
+  const lines = COMMENTARY_BANK[category] || [];
+  if (!lines.length) return "";
+  let nextIndex = Math.floor(Math.random() * lines.length);
+  if (lines.length > 1 && commentaryLastIndexByCategory[category] === nextIndex) {
+    nextIndex = (nextIndex + 1) % lines.length;
+  }
+  commentaryLastIndexByCategory[category] = nextIndex;
+  return lines[nextIndex];
+}
+
+function announceMatchCommentary(category, data = {}, tone = "normal") {
+  if (holeMode) return;
+  const template = pickCommentaryLine(category);
+  if (!template) return;
+  setTickerMessage(formatCommentaryTemplate(template, data), tone);
 }
 
 function setTickerMessage(message, tone = "normal") {
@@ -4863,6 +5130,29 @@ function move(direction) {
     render();
     highlightBoardCoordinates([...touchedRows], [...touchedCols]);
     maybeCelebrateLiveGlobalRecord();
+    const scoreBucket = Math.floor(gameState.score / 1000);
+    const nextMoveNumber = moveSequence + 1;
+    const crossedScoreBucket = scoreBucket > lastCommentaryScoreBucket;
+    if (!demoMode && !holeMode) {
+      if (crossedScoreBucket) {
+        lastCommentaryScoreBucket = scoreBucket;
+      }
+      if (highestMerge >= 2048) {
+        announceMatchCommentary("tile2048", { value: highestMerge }, "record");
+      } else if (highestMerge >= 1024) {
+        announceMatchCommentary("tile1024", { value: highestMerge }, "accent");
+      } else if (highestMerge >= 512) {
+        announceMatchCommentary("tile512", { value: highestMerge }, "accent");
+      } else if (highestMerge >= 256) {
+        announceMatchCommentary("tile256", { value: highestMerge }, "normal");
+      } else if (highestMerge >= 128) {
+        announceMatchCommentary("tile128", { value: highestMerge }, "normal");
+      } else if (crossedScoreBucket && scoreBucket > 0) {
+        announceMatchCommentary("score", { score: gameState.score }, "normal");
+      } else if (nextMoveNumber > 0 && nextMoveNumber % 8 === 0) {
+        announceMatchCommentary("pressure", { moves: nextMoveNumber }, "normal");
+      }
+    }
     pushHistoryEntry(direction);
     persistSessionSnapshot();
 
