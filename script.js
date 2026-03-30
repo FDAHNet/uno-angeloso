@@ -5997,15 +5997,18 @@ function stopMusicPlayback() {
   updateMusicGain();
 }
 
-function startMusicPlayback() {
+function startMusicPlayback(options = {}) {
+  const { fadeOutFirst = true } = options;
   if (!musicEnabled) return;
   unlockAudio().then((context) => {
     if (!context || context.state !== "running") return;
-    stopMusicPlayback();
+    if (fadeOutFirst) {
+      stopMusicPlayback();
+    }
     updateMusicGain();
     const track = MUSIC_TRACKS[currentMusicTrackIndex % MUSIC_TRACKS.length];
     const token = musicPlaybackToken;
-    const startAt = context.currentTime + 0.05;
+    const startAt = context.currentTime + (fadeOutFirst ? 0.16 : 0.05);
     const channelGain = context.createGain();
     channelGain.gain.setValueAtTime(1, startAt);
     channelGain.connect(audioMusicGain || audioMasterGain);
@@ -6029,7 +6032,10 @@ function nextMusicTrack() {
   localStorage.setItem(MUSIC_TRACK_INDEX_KEY, String(currentMusicTrackIndex));
   renderMusicInfo();
   if (musicEnabled) {
-    startMusicPlayback();
+    stopMusicPlayback();
+    window.setTimeout(() => {
+      if (musicEnabled) startMusicPlayback({ fadeOutFirst: false });
+    }, 120);
     setStatus(`Siguiente pista: ${MUSIC_TRACKS[currentMusicTrackIndex].name}.`);
   }
 }

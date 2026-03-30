@@ -1969,11 +1969,11 @@ button:hover {
 
 .music-control-block {
   display: grid;
-  gap: 6px;
+  gap: 5px;
   justify-items: stretch;
-  width: 150px;
+  width: 142px;
   box-sizing: border-box;
-  padding: 10px 10px 12px;
+  padding: 8px 8px 10px;
   border-radius: 16px;
   border: 1px solid rgba(255, 226, 136, 0.16);
   background: linear-gradient(180deg, rgba(255, 204, 112, 0.16), rgba(78, 32, 14, 0.2));
@@ -1989,32 +1989,32 @@ button:hover {
 
 .music-control-title {
   color: #ffe5a4;
-  font-size: 0.56rem;
-  letter-spacing: 0.1em;
+  font-size: 0.5rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .music-track-timer {
   color: rgba(255, 255, 255, 0.7);
-  font-size: 0.5rem;
-  letter-spacing: 0.04em;
+  font-size: 0.46rem;
+  letter-spacing: 0.02em;
 }
 
 .music-toggle-button {
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 10px;
-  font-size: 0.74rem;
+  padding: 7px 8px;
+  font-size: 0.68rem;
   line-height: 1.1;
 }
 
 .music-track-name {
   width: 100%;
   box-sizing: border-box;
-  min-height: 2.3em;
+  min-height: 2em;
   color: rgba(255, 255, 255, 0.82);
-  font-size: 0.6rem;
-  line-height: 1.25;
+  font-size: 0.54rem;
+  line-height: 1.18;
   text-align: center;
   overflow-wrap: anywhere;
 }
@@ -2022,8 +2022,8 @@ button:hover {
 .music-next-button {
   width: 100%;
   box-sizing: border-box;
-  padding: 7px 10px;
-  font-size: 0.64rem;
+  padding: 6px 8px;
+  font-size: 0.58rem;
   line-height: 1.1;
 }
 
@@ -2035,8 +2035,8 @@ button:hover {
   justify-items: stretch;
   text-align: right;
   color: rgba(255, 255, 255, 0.72);
-  font-size: 0.56rem;
-  letter-spacing: 0.08em;
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
