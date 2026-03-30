@@ -606,7 +606,7 @@ function updateAudioToggleButton() {
 
 function updateMusicGain() {
   if (!audioMusicGain) return;
-  const target = musicEnabled ? Math.max(0.0001, musicVolume * 0.24) : 0.0001;
+  const target = musicEnabled ? Math.max(0.0001, musicVolume * 0.55) : 0.0001;
   audioMusicGain.gain.setTargetAtTime(target, audioContext?.currentTime || 0, 0.08);
 }
 
