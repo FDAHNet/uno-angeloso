@@ -14,6 +14,9 @@ const RECORDS_PREFIX = "smooth-2048-records";
 const MAX_RECORDS_PER_MODE = 10;
 const PLAYER_INITIALS_KEY = "smooth-2048-player-initials";
 const AUDIO_ENABLED_KEY = "smooth-2048-audio-enabled";
+const MUSIC_ENABLED_KEY = "smooth-2048-music-enabled";
+const MUSIC_VOLUME_KEY = "smooth-2048-music-volume";
+const MUSIC_TRACK_INDEX_KEY = "smooth-2048-music-track-index";
 const THEME_KEY = "smooth-2048-theme";
 const SESSION_SNAPSHOT_KEY = "smooth-2048-session-snapshot";
 const SAVE_SLOTS_KEY = "smooth-2048-save-slots";
@@ -38,6 +41,20 @@ const RECORD_CATEGORY_LABELS = {
 const DEFAULT_ADVANCED_CREDITS = 100;
 const HOLE_SPEED_OPTIONS = [1, 2, 4, 8, 16, 32];
 const ADVANCED_BET_STAKES = [0, 5, 10, 20, 50];
+const MUSIC_SCALE_MAJOR = [0, 2, 4, 5, 7, 9, 11];
+const MUSIC_SCALE_MINOR = [0, 2, 3, 5, 7, 8, 10];
+const MUSIC_TRACKS = [
+  { name: "Neon Drive", tempo: 104, mode: "minor", rootMidi: 57, progression: [0, 5, 3, 4], melody: [0, 2, 4, 2, 6, 4, 2, 1], bass: [0, null, 0, null, 5, null, 3, null], lead: "square", pad: "triangle" },
+  { name: "Sunset Loop", tempo: 96, mode: "major", rootMidi: 60, progression: [0, 4, 5, 3], melody: [0, 2, 4, 5, 4, 2, 1, 0], bass: [0, null, 4, null, 5, null, 3, null], lead: "triangle", pad: "sine" },
+  { name: "Laser Metro", tempo: 122, mode: "minor", rootMidi: 55, progression: [0, 3, 4, 3], melody: [0, 4, 5, 4, 2, 4, 6, 4], bass: [0, 0, 3, 3, 4, 4, 3, 3], lead: "sawtooth", pad: "triangle" },
+  { name: "Pixel Night", tempo: 88, mode: "minor", rootMidi: 52, progression: [0, 5, 4, 5], melody: [0, 1, 2, 4, 2, 1, 0, null], bass: [0, null, 5, null, 4, null, 5, null], lead: "square", pad: "sine" },
+  { name: "Arcade Breeze", tempo: 110, mode: "major", rootMidi: 62, progression: [0, 3, 4, 0], melody: [0, 2, 4, 6, 4, 2, 1, 0], bass: [0, null, 3, null, 4, null, 0, null], lead: "triangle", pad: "triangle" },
+  { name: "Turbo Grid", tempo: 128, mode: "minor", rootMidi: 50, progression: [0, 4, 5, 4], melody: [0, 2, 4, 7, 6, 4, 2, 1], bass: [0, 0, 4, 4, 5, 5, 4, 4], lead: "square", pad: "sawtooth" },
+  { name: "Crystal Run", tempo: 100, mode: "major", rootMidi: 64, progression: [0, 5, 3, 4], melody: [0, 4, 5, 7, 5, 4, 2, 0], bass: [0, null, 5, null, 3, null, 4, null], lead: "sine", pad: "triangle" },
+  { name: "Afterglow", tempo: 92, mode: "minor", rootMidi: 58, progression: [0, 3, 5, 4], melody: [0, 2, 3, 5, 3, 2, 1, null], bass: [0, null, 3, null, 5, null, 4, null], lead: "triangle", pad: "sine" },
+  { name: "Skyline Pulse", tempo: 116, mode: "major", rootMidi: 59, progression: [0, 4, 3, 5], melody: [0, 2, 4, 5, 7, 5, 4, 2], bass: [0, 0, 4, null, 3, null, 5, null], lead: "square", pad: "triangle" },
+  { name: "Vector Dream", tempo: 106, mode: "minor", rootMidi: 54, progression: [0, 5, 4, 3], melody: [0, 2, 4, 6, 4, 3, 2, 1], bass: [0, null, 5, null, 4, null, 3, null], lead: "sine", pad: "triangle" },
+];
 const ADVANCED_BET_RULES = [
   { value: "reasonUser", label: "Finaliza BY USER" },
   { value: "highestTileGte", label: "Ficha maxima >= objetivo" },
@@ -328,6 +345,8 @@ const finishButton = document.getElementById("finish-button");
 const gameOverOverlayElement = document.getElementById("game-over-overlay");
 const gameOverReasonElement = document.getElementById("game-over-reason");
 const audioToggleButton = document.getElementById("audio-toggle-button");
+const musicToggleButton = document.getElementById("music-toggle-button");
+const musicVolumeSlider = document.getElementById("music-volume-slider");
 const undoToggleButton = document.getElementById("undo-toggle-button");
 const pauseButton = document.getElementById("pause-button");
 const saveGameButton = document.getElementById("save-game-button");
@@ -452,8 +471,15 @@ let isAnimating = false;
 let touchStart = null;
 let audioContext = null;
 let audioMasterGain = null;
+let audioSfxGain = null;
+let audioMusicGain = null;
 let audioUnlocked = false;
 let audioEnabled = localStorage.getItem(AUDIO_ENABLED_KEY) === "true";
+let musicEnabled = localStorage.getItem(MUSIC_ENABLED_KEY) === "true";
+let musicVolume = Math.min(1, Math.max(0, Number(localStorage.getItem(MUSIC_VOLUME_KEY) || 0.28)));
+let currentMusicTrackIndex = Math.max(0, Number(localStorage.getItem(MUSIC_TRACK_INDEX_KEY) || 0)) % 10;
+let musicPlaybackToken = 0;
+let musicLoopTimeout = null;
 let recordSaved = false;
 let pendingGlobalRecord = null;
 let advancedMode = false;
@@ -576,6 +602,24 @@ function updateAudioToggleButton() {
   audioToggleButton.textContent = audioEnabled ? "🔊 SONIDO ON" : "🔈 SONIDO OFF";
   audioToggleButton.classList.toggle("is-on", audioEnabled);
   audioToggleButton.setAttribute("aria-pressed", String(audioEnabled));
+}
+
+function updateMusicGain() {
+  if (!audioMusicGain) return;
+  const target = musicEnabled ? Math.max(0.0001, musicVolume * 0.24) : 0.0001;
+  audioMusicGain.gain.setTargetAtTime(target, audioContext?.currentTime || 0, 0.08);
+}
+
+function updateMusicControls() {
+  if (musicToggleButton) {
+    musicToggleButton.textContent = musicEnabled ? "♫ MUSICA ON" : "♫ MUSICA OFF";
+    musicToggleButton.classList.toggle("is-on", musicEnabled);
+    musicToggleButton.setAttribute("aria-pressed", String(musicEnabled));
+  }
+  if (musicVolumeSlider) {
+    musicVolumeSlider.value = String(Math.round(musicVolume * 100));
+  }
+  updateMusicGain();
 }
 
 function loadAdvancedPlayerAuth() {
@@ -5663,13 +5707,20 @@ function ensureAudio() {
     audioContext = new AudioCtor();
     audioMasterGain = audioContext.createGain();
     audioMasterGain.gain.value = 0.9;
+    audioSfxGain = audioContext.createGain();
+    audioSfxGain.gain.value = 1;
+    audioMusicGain = audioContext.createGain();
+    audioMusicGain.gain.value = 0.0001;
+    audioSfxGain.connect(audioMasterGain);
+    audioMusicGain.connect(audioMasterGain);
     audioMasterGain.connect(audioContext.destination);
+    updateMusicGain();
   }
   return audioContext;
 }
 
 async function unlockAudio() {
-  if (!audioEnabled) return null;
+  if (!audioEnabled && !musicEnabled) return null;
   const context = ensureAudio();
   if (!context) return null;
 
@@ -5686,7 +5737,7 @@ async function unlockAudio() {
     const gain = context.createGain();
     gain.gain.value = 0.0001;
     oscillator.connect(gain);
-    gain.connect(audioMasterGain);
+    gain.connect(audioSfxGain || audioMasterGain);
     oscillator.start();
     oscillator.stop(context.currentTime + 0.01);
     audioUnlocked = true;
@@ -5709,7 +5760,7 @@ function playToneNow(context, { frequency, duration, type = "sine", volume = 0.0
   gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
 
   oscillator.connect(gain);
-  gain.connect(audioMasterGain);
+  gain.connect(audioSfxGain || audioMasterGain);
   oscillator.start(startAt);
   oscillator.stop(startAt + duration + 0.02);
 }
@@ -5806,6 +5857,111 @@ function playTimeMilestoneSound() {
   });
 }
 
+function midiToFrequency(midi) {
+  return 440 * (2 ** ((midi - 69) / 12));
+}
+
+function getMusicScale(track) {
+  return track.mode === "major" ? MUSIC_SCALE_MAJOR : MUSIC_SCALE_MINOR;
+}
+
+function getScaleMidi(track, degree, octave = 0) {
+  const scale = getMusicScale(track);
+  const normalizedDegree = ((degree % scale.length) + scale.length) % scale.length;
+  const octaveShift = Math.floor(degree / scale.length);
+  return track.rootMidi + scale[normalizedDegree] + ((octave + octaveShift) * 12);
+}
+
+function scheduleMusicTone(context, targetGain, { frequency, startAt, duration, type = "sine", volume = 0.05, slideTo = null }) {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.type = type;
+  oscillator.frequency.setValueAtTime(frequency, startAt);
+  if (slideTo) oscillator.frequency.exponentialRampToValueAtTime(slideTo, startAt + duration);
+  gain.gain.setValueAtTime(0.0001, startAt);
+  gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, volume), startAt + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+  oscillator.connect(gain);
+  gain.connect(targetGain);
+  oscillator.start(startAt);
+  oscillator.stop(startAt + duration + 0.03);
+}
+
+function scheduleMusicTrack(context, track, startAt) {
+  const barDuration = (60 / track.tempo) * 4;
+  const stepDuration = barDuration / 8;
+  const target = audioMusicGain || audioMasterGain;
+  track.progression.forEach((barDegree, barIndex) => {
+    const barStart = startAt + (barIndex * barDuration);
+    const chordDegrees = [barDegree, barDegree + 2, barDegree + 4];
+    chordDegrees.forEach((degree, chordIndex) => {
+      scheduleMusicTone(context, target, {
+        frequency: midiToFrequency(getScaleMidi(track, degree, chordIndex === 2 ? 1 : 0)),
+        startAt: barStart,
+        duration: barDuration * 0.92,
+        type: track.pad,
+        volume: 0.017,
+      });
+    });
+
+    for (let step = 0; step < 8; step += 1) {
+      const stepStart = barStart + (step * stepDuration);
+      const melodyDegree = track.melody[step % track.melody.length];
+      if (melodyDegree !== null && melodyDegree !== undefined) {
+        scheduleMusicTone(context, target, {
+          frequency: midiToFrequency(getScaleMidi(track, barDegree + melodyDegree, 1)),
+          startAt: stepStart,
+          duration: stepDuration * 0.82,
+          type: track.lead,
+          volume: 0.032,
+        });
+      }
+
+      const bassDegree = track.bass[step % track.bass.length];
+      if (bassDegree !== null && bassDegree !== undefined) {
+        scheduleMusicTone(context, target, {
+          frequency: midiToFrequency(getScaleMidi(track, bassDegree, -1)),
+          startAt: stepStart,
+          duration: stepDuration * 0.9,
+          type: "triangle",
+          volume: 0.05,
+          slideTo: midiToFrequency(getScaleMidi(track, bassDegree, -1)) * 0.985,
+        });
+      }
+    }
+  });
+  return barDuration * track.progression.length;
+}
+
+function stopMusicPlayback() {
+  musicPlaybackToken += 1;
+  if (musicLoopTimeout) {
+    window.clearTimeout(musicLoopTimeout);
+    musicLoopTimeout = null;
+  }
+  updateMusicGain();
+}
+
+function startMusicPlayback() {
+  if (!musicEnabled) return;
+  unlockAudio().then((context) => {
+    if (!context || context.state !== "running") return;
+    stopMusicPlayback();
+    updateMusicGain();
+    const track = MUSIC_TRACKS[currentMusicTrackIndex % MUSIC_TRACKS.length];
+    const token = musicPlaybackToken;
+    const startAt = context.currentTime + 0.05;
+    const duration = scheduleMusicTrack(context, track, startAt);
+    const nextIndex = (currentMusicTrackIndex + 1) % MUSIC_TRACKS.length;
+    musicLoopTimeout = window.setTimeout(() => {
+      if (token !== musicPlaybackToken || !musicEnabled) return;
+      currentMusicTrackIndex = nextIndex;
+      localStorage.setItem(MUSIC_TRACK_INDEX_KEY, String(currentMusicTrackIndex));
+      startMusicPlayback();
+    }, Math.max(1200, Math.round(duration * 1000)));
+  }).catch(() => {});
+}
+
 function queueMove(direction) {
   if (awaitingManualStart) return;
   if (!audioEnabled) {
@@ -5824,11 +5980,37 @@ function toggleAudioEnabled() {
     void unlockAudio();
     setStatus("Sonido activado.");
   } else {
-    if (audioContext?.state === "running") {
+    if (audioContext?.state === "running" && !musicEnabled) {
       audioContext.suspend().catch(() => {});
     }
     audioUnlocked = false;
     setStatus("Sonido desactivado.");
+  }
+}
+
+function toggleMusicEnabled() {
+  musicEnabled = !musicEnabled;
+  localStorage.setItem(MUSIC_ENABLED_KEY, String(musicEnabled));
+  updateMusicControls();
+  if (musicEnabled) {
+    startMusicPlayback();
+    setStatus(`Musica activada. Sonando: ${MUSIC_TRACKS[currentMusicTrackIndex % MUSIC_TRACKS.length].name}.`);
+  } else {
+    stopMusicPlayback();
+    if (audioContext?.state === "running" && !audioEnabled) {
+      audioContext.suspend().catch(() => {});
+    }
+    setStatus("Musica desactivada.");
+  }
+}
+
+function setMusicVolumeFromSlider(value) {
+  const nextVolume = Math.min(1, Math.max(0, Number(value) / 100));
+  musicVolume = nextVolume;
+  localStorage.setItem(MUSIC_VOLUME_KEY, String(musicVolume));
+  updateMusicControls();
+  if (musicEnabled) {
+    void unlockAudio();
   }
 }
 
@@ -6040,25 +6222,26 @@ function handleTouchEnd(event) {
 }
 
 window.addEventListener("pointerdown", () => {
-  if (audioEnabled) void unlockAudio();
+  if (audioEnabled || musicEnabled) void unlockAudio();
 });
 window.addEventListener("visibilitychange", () => {
-  if (audioEnabled && document.visibilityState === "visible") {
+  if ((audioEnabled || musicEnabled) && document.visibilityState === "visible") {
     void unlockAudio();
+    if (musicEnabled) startMusicPlayback();
   }
   if (document.visibilityState === "visible" && recordsPanelOpen) {
     fetchGlobalRecords();
   }
 });
 restartButton.addEventListener("click", () => {
-  if (audioEnabled) void unlockAudio();
+  if (audioEnabled || musicEnabled) void unlockAudio();
   attractDismissed = true;
   attractOverlayElement.classList.add("hidden");
   void startFreshGame();
 });
-boardSizeSelect.addEventListener("click", () => { if (audioEnabled) void unlockAudio(); });
+boardSizeSelect.addEventListener("click", () => { if (audioEnabled || musicEnabled) void unlockAudio(); });
 boardSizeSelect.addEventListener("change", () => {
-  if (audioEnabled) void unlockAudio();
+  if (audioEnabled || musicEnabled) void unlockAudio();
   attractDismissed = true;
   attractOverlayElement.classList.add("hidden");
   updateRecordsMiniTicker(globalRecordsCache);
@@ -6073,6 +6256,13 @@ boardSizeSelect.addEventListener("change", () => {
 });
 finishButton.addEventListener("click", finishGame);
 audioToggleButton.addEventListener("click", toggleAudioEnabled);
+musicToggleButton?.addEventListener("click", toggleMusicEnabled);
+musicVolumeSlider?.addEventListener("input", (event) => {
+  setMusicVolumeFromSlider(event.target.value);
+});
+musicVolumeSlider?.addEventListener("pointerdown", () => {
+  if (audioEnabled || musicEnabled) void unlockAudio();
+});
 undoToggleButton.addEventListener("click", () => setUndoPanelOpen(!undoPanelOpen));
 pauseButton.addEventListener("click", () => {
   if (demoMode || replayMode || initialsEntryState.active || gameState.over || awaitingManualStart) return;
@@ -6129,8 +6319,8 @@ closeUndoButton.addEventListener("click", () => setUndoPanelOpen(false));
 closeSaveSlotsButton.addEventListener("click", () => setSaveSlotsPanelOpen(false));
 startAttractButton.addEventListener("click", startActualGame);
 themeSelect.addEventListener("change", (event) => applyTheme(event.target.value));
-selectLetterButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
-deleteLetterButton.addEventListener("pointerdown", () => { if (audioEnabled) void unlockAudio(); });
+selectLetterButton.addEventListener("pointerdown", () => { if (audioEnabled || musicEnabled) void unlockAudio(); });
+deleteLetterButton.addEventListener("pointerdown", () => { if (audioEnabled || musicEnabled) void unlockAudio(); });
 selectLetterButton.addEventListener("click", commitCurrentLetter);
 deleteLetterButton.addEventListener("click", deleteLastLetter);
 closeInitialsButton.addEventListener("click", () => closeInitialsEntry({ discard: true }));
@@ -6266,6 +6456,10 @@ window.addEventListener("resize", render);
 buildGrid();
 applyTheme(theme);
 updateAudioToggleButton();
+updateMusicControls();
+if (musicEnabled) {
+  startMusicPlayback();
+}
 renderAdminOverview();
 updateAdvancedModeUI();
 updateHoleSpeedUI();

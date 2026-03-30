@@ -229,6 +229,13 @@
             <button id="finish-button" type="button">Ok, GANE.<br>Finaliza el juego</button>
           </div>
           <button id="audio-toggle-button" type="button" class="secondary-button audio-toggle-button" aria-pressed="false">🔈 OFF</button>
+          <div class="music-control-block">
+            <button id="music-toggle-button" type="button" class="secondary-button music-toggle-button" aria-pressed="false">♫ MUSICA OFF</button>
+            <label class="music-volume-control" for="music-volume-slider">
+              <span>Volumen</span>
+              <input id="music-volume-slider" type="range" min="0" max="100" step="1" value="28">
+            </label>
+          </div>
           <button id="undo-toggle-button" type="button" class="undo-toggle-button">UNDO</button>
           <button id="pause-button" type="button" class="pause-button">PAUSA</button>
           <button id="save-game-button" type="button" class="save-game-button">Grabar Partida</button>

@@ -1760,6 +1760,8 @@ button:hover {
 
 #finish-button,
 .audio-toggle-button,
+.music-control-block,
+.music-toggle-button,
 .undo-toggle-button,
 .pause-button,
 .save-game-button,
@@ -1965,6 +1967,36 @@ button:hover {
   line-height: 1.1;
 }
 
+.music-control-block {
+  display: grid;
+  gap: 6px;
+  justify-items: end;
+}
+
+.music-toggle-button {
+  padding: 9px 14px;
+  font-size: 0.82rem;
+  line-height: 1.1;
+}
+
+.music-volume-control {
+  width: 150px;
+  display: grid;
+  gap: 4px;
+  justify-items: stretch;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.music-volume-control input[type="range"] {
+  width: 100%;
+  accent-color: #7cf7ff;
+  cursor: pointer;
+}
+
 .undo-toggle-button {
   margin-top: 10px;
   padding: 9px 14px;
@@ -2012,6 +2044,12 @@ button:hover {
 .audio-toggle-button.is-on {
   color: #1a1123;
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  border-color: transparent;
+}
+
+.music-toggle-button.is-on {
+  color: #16121d;
+  background: linear-gradient(135deg, #ffe07b, #ff9f68);
   border-color: transparent;
 }
 
