@@ -2626,6 +2626,14 @@ function setStatus(message) {
   setTickerMessage(normalized, tone);
 }
 
+function clearStatusLaterIfUnchanged(message, delay = 3000) {
+  window.setTimeout(() => {
+    if ((statusElement?.textContent || "").trim() === String(message || "").trim()) {
+      setStatus("");
+    }
+  }, delay);
+}
+
 function setAdminPanelStatus(message) {
   if (adminPanelStatusElement) {
     adminPanelStatusElement.textContent = message;
@@ -4771,6 +4779,7 @@ async function openReplayViewer(replay, record) {
     replayEmptyElement.classList.remove("hidden");
     replayControlsElement.classList.add("hidden");
     setStatus("Cargando replay...");
+    clearStatusLaterIfUnchanged("Cargando replay...", 3000);
     try {
       replay = await fetchReplayForRecord(record);
     } catch (error) {

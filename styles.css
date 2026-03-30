@@ -519,12 +519,13 @@ h1 {
 .controls {
   margin-top: 18px;
   padding: 18px 22px;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  overflow: hidden;
-  z-index: 12;
+  overflow: visible;
+  z-index: 220;
 }
 
 .system-ticker {
@@ -761,7 +762,7 @@ h1 {
   position: absolute;
   left: 50%;
   top: calc(100% + 12px);
-  z-index: 999;
+  z-index: 10000;
   transform: translateX(-50%) translateY(6px);
   width: min(320px, 72vw);
   padding: 12px 14px;
