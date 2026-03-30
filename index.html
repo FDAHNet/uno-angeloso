@@ -89,6 +89,7 @@
             <option value="5">5 x 5</option>
             <option value="6">6 x 6</option>
             <option value="8">8 x 8</option>
+            <option value="16">16 x 16</option>
           </select>
         </label>
         <label class="advanced-toggle" for="advanced-mode-toggle">
@@ -447,6 +448,30 @@
                 <span>Partida</span>
               </div>
               <div id="global-records-list-8x8" class="records-list"></div>
+            </section>
+            <section class="records-mode-group" data-mode="16x16">
+              <div class="records-mode-header">
+                <h4 class="records-mode-title">16x16</h4>
+                <div class="records-mode-actions">
+                  <label class="records-sort-control hidden" data-mode="16x16">
+                    <span>Orden</span>
+                    <select class="records-sort-select" data-mode="16x16">
+                      <option value="score">Puntos</option>
+                      <option value="date">Fecha</option>
+                    </select>
+                  </label>
+                  <button type="button" class="secondary-button records-mode-toggle" data-mode="16x16">Ver todo</button>
+                  <button type="button" class="danger-button records-mode-close hidden" data-mode="16x16">Cerrar</button>
+                </div>
+              </div>
+              <div class="records-row records-row-head">
+                <span>#</span>
+                <span>Jugador</span>
+                <span>Puntos</span>
+                <span>Fecha</span>
+                <span>Partida</span>
+              </div>
+              <div id="global-records-list-16x16" class="records-list"></div>
             </section>
           </div>
         </div>

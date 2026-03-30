@@ -5,7 +5,7 @@ const PLAYER_LABEL = 'player-account';
 const BET_CONFIG_LABEL = 'bet-config';
 const DEFAULT_ALLOWED_ORIGIN = 'https://fdahnet.github.io';
 const DEFAULT_ALLOWED_REFERER_PREFIX = 'https://fdahnet.github.io';
-const ALLOWED_MODES = new Set(['4x4', '5x5', '6x6', '8x8']);
+const ALLOWED_MODES = new Set(['4x4', '5x5', '6x6', '8x8', '16x16']);
 const ALLOWED_CATEGORIES = new Set(['normal', 'hole']);
 const ALLOWED_REPLAY_VERSIONS = new Set([1, 2]);
 const MAX_REQUEST_BYTES = 4_000_000;
@@ -951,7 +951,7 @@ function normalizeBetDefinition(definition, index) {
 function parseRecordIssue(issue) {
   const body = issue.body || '';
   const initials = body.match(/Initials:\s*([A-Z?]{3})/i)?.[1] || issue.title.match(/^\[Record\]\s+([A-Z?]{3})/i)?.[1] || '---';
-  const mode = body.match(/Mode:\s*(\dx\d)/i)?.[1] || issue.title.match(/-\s*(\dx\d)\b/i)?.[1] || '4x4';
+  const mode = body.match(/Mode:\s*(\d+x\d+)/i)?.[1] || issue.title.match(/-\s*(\d+x\d+)\b/i)?.[1] || '4x4';
   const category = body.match(/Category:\s*(normal|hole)/i)?.[1]?.toLowerCase() || 'normal';
   const score = Number(body.match(/Score:\s*([0-9]+)/i)?.[1] || issue.title.match(/-\s*([0-9]+)\s*-/)?.[1] || 0);
   if (!ALLOWED_MODES.has(mode) || !ALLOWED_CATEGORIES.has(category) || !Number.isFinite(score)) return null;
@@ -1059,6 +1059,9 @@ function json(data, status, headers) {
     },
   });
 }
+
+
+
 
 
 

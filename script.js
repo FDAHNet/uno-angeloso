@@ -632,7 +632,7 @@ let ledgerLoading = false;
 let ledgerData = null;
 let lastGameOverReason = "";
 let globalRecordsCache = Object.fromEntries(
-  ["4x4", "5x5", "6x6", "8x8"].map((mode) => [
+  ["4x4", "5x5", "6x6", "8x8", "16x16"].map((mode) => [
     mode,
     Object.fromEntries(RECORD_CATEGORIES.map((category) => [category, []])),
   ])
@@ -661,7 +661,7 @@ let advancedSessionReported = false;
 const ARCADE_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const INITIALS_GRID_CHARS = [...ARCADE_ALPHABET, "?"];
 const INITIALS_GRID_COLUMNS = 9;
-const GLOBAL_MODES = ["4x4", "5x5", "6x6", "8x8"];
+const GLOBAL_MODES = ["4x4", "5x5", "6x6", "8x8", "16x16"];
 const REPLAY_MOVE_CODES = {
   up: "U",
   right: "R",
