@@ -550,7 +550,9 @@ h1 {
 .system-ticker-track {
   display: inline-block;
   min-width: max-content;
+  padding-inline-start: 100%;
   animation: ticker-scroll 20s linear infinite;
+  will-change: transform;
 }
 
 .system-ticker-track[data-tone="danger"] .system-ticker-text {
@@ -3104,7 +3106,7 @@ button:hover {
 }
 
 @keyframes ticker-scroll {
-  0% { transform: translateX(100%); }
+  0% { transform: translateX(0); }
   100% { transform: translateX(-100%); }
 }
 
