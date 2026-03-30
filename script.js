@@ -3011,6 +3011,8 @@ function setRecordsPanelOpen(nextOpen) {
   recordsPanelElement.classList.toggle("records-panel-collapsed", !recordsPanelOpen);
   toggleRecordsButton.textContent = recordsPanelOpen ? "Ocultar records" : "Mostrar records";
   if (recordsPanelOpen) {
+    expandedRecordsMode = null;
+    syncExpandedRecordsUI();
     renderGlobalRecordsLoading();
     fetchGlobalRecords();
   }
@@ -6615,6 +6617,8 @@ boardSizeSelect.addEventListener("change", () => {
   if (audioEnabled || musicEnabled) void unlockAudio();
   attractDismissed = true;
   attractOverlayElement.classList.add("hidden");
+  expandedRecordsMode = null;
+  syncExpandedRecordsUI();
   updateRecordsMiniTicker(globalRecordsCache);
   if (recordCardModalOpen) {
     renderRecordCardModal();
