@@ -316,6 +316,84 @@ const COMMENTARY_BANK = {
     "No hubo salida posible y {player} se queda en {score} puntos.",
     "Cae el telon por falta de movimientos, con {player} cerrando en {score}."
   ],
+  build: [
+    "{player} ordena el tablero con mimo y prepara la siguiente fusion.",
+    "Se ve plan de partido: {player} limpia carriles y guarda aire.",
+    "{player} está construyendo por capas, sin perder la forma.",
+    "Trabajo fino de {player}, que va colocando cada bloque en su sitio.",
+    "{player} cocina una posicion muy seria y el tablero responde.",
+    "Se nota la mano de {player}: todo empieza a quedar bien atado.",
+    "{player} recompone la estructura y evita sustos por ahora.",
+    "Hay oficio en la gestion de {player}, que mantiene las lineas vivas.",
+    "{player} vuelve a poner orden y eso se nota en cada fila.",
+    "Tablero bajo control para {player}, que rehace la casa pieza a pieza.",
+    "{player} encuentra huecos de aire y recompone la jugada.",
+    "Se ve un patron claro: {player} está construyendo con cabeza.",
+    "{player} coloca una base muy limpia para atacar luego.",
+    "Partido de paciencia y mano firme para {player}.",
+    "{player} levanta un tablero muy sano, listo para apretar.",
+    "Buena cocina de posicion de {player}, que no deja basura atras.",
+    "{player} se dedica a ordenar y el tablero gana brillo.",
+    "Cada gesto de {player} suma estructura para lo que viene.",
+    "{player} amasa una posicion cada vez mas comoda.",
+    "Se trabaja bien la geometria del tablero en manos de {player}."
+  ],
+  danger: [
+    "Atencion, el tablero se aprieta y {player} necesita oxigeno.",
+    "Momento delicado para {player}: hay poco margen y mucha tension.",
+    "Se enciende la alarma suave, {player} juega una fase comprometida.",
+    "{player} está en zona caliente y necesita una buena salida.",
+    "El tablero aprieta por todos lados; turno muy serio para {player}.",
+    "Cuidado porque {player} pisa ahora mismo terreno resbaladizo.",
+    "Hay atasco parcial y {player} busca una rendija.",
+    "Se estrecha el campo de juego para {player}.",
+    "{player} entra en una secuencia de supervivencia pura.",
+    "No sobra nada ahora mismo para {player}; toca hilar fino.",
+    "El partido se le pone serio a {player} por un instante.",
+    "{player} aguanta una embestida del tablero que no era pequena.",
+    "Fase tensa de verdad, con {player} tratando de no romper el plan.",
+    "Peligro contenido para {player}, que necesita una fusion limpia.",
+    "{player} juega sobre el alambre, aunque aun con opciones.",
+    "Se compacta el tablero y obliga a {player} a pensar mas.",
+    "{player} entra en maniobra defensiva para salir con vida.",
+    "La mesa se cierra y {player} necesita calidad, no solo ritmo.",
+    "Ojo al atasco: {player} se juega una salida importante.",
+    "Ahora mismo {player} está resistiendo un momento muy fino."
+  ],
+  comeback: [
+    "{player} respira otra vez; parecia tenso y vuelve a mandar.",
+    "Gran reaccion de {player}, que recupera espacio donde no lo habia.",
+    "{player} se saca una salida buenisima y recompone el tablero.",
+    "Vaya giro de guion: {player} limpia media mesa de un plumazo.",
+    "{player} encuentra una ventana y la convierte en ventaja.",
+    "Partido vivo otra vez gracias a la respuesta de {player}.",
+    "{player} le da la vuelta al momento y vuelve a respirar.",
+    "Eso cambia el panorama: {player} sale del atasco con autoridad.",
+    "{player} resuelve una situacion fea con mucha categoria.",
+    "Habia peligro y {player} lo transforma en impulso positivo.",
+    "Magnifica correccion de {player}, que vuelve a abrir la partida.",
+    "{player} salva la posicion y encima gana terreno.",
+    "Recuperacion muy buena de {player}, que vuelve al mando tactico.",
+    "{player} convierte la supervivencia en oportunidad.",
+    "Se despeja el horizonte para {player} tras una gran maniobra.",
+    "{player} se recompone con mucho oficio y vuelve a tener aire.",
+    "Excelente lectura de {player}, que da la vuelta a una fase dura.",
+    "{player} vuelve a poner la partida donde queria.",
+    "Respuesta de peso de {player}; el tablero vuelve a obedecer.",
+    "Se nota el cambio de inercia a favor de {player}."
+  ],
+  marathon: [
+    "{player} alcanza ya los {minutes} minutos y esto sigue muy vivo.",
+    "Partido largo en cabina: {player} ya supera los {minutes} minutos.",
+    "{player} entra en tramo de fondo, con {minutes} minutos de juego.",
+    "No es una partida, es una sesion seria: {minutes} minutos para {player}.",
+    "{player} sigue de pie tras {minutes} minutos de batalla.",
+    "Minuto {minutes} de juego para {player}, y aun con pulso competitivo.",
+    "Ya van {minutes} minutos de tablero para {player}; resistencia total.",
+    "{player} convierte esto en una maraton arcade de {minutes} minutos.",
+    "Se acumula el kilometraje: {minutes} minutos con {player} al volante.",
+    "{player} ya lleva {minutes} minutos empujando la partida sin bajar la guardia."
+  ],
 };
 
 const boardElement = document.getElementById("board");
@@ -2063,6 +2141,7 @@ function triggerTimeMilestoneFx(minutes) {
 
   playTimeMilestoneSound();
   setStatus(`${minutes} minutos de partida.`);
+  announceMatchCommentary("marathon", { minutes }, "accent");
   showSystemAnnouncement(`${minutes} MINUTOS`, "accent");
 }
 
@@ -2773,8 +2852,7 @@ function setStatus(message) {
   statusElement.textContent = message;
   const normalized = String(message || "").trim();
   if (!normalized) return;
-  if (replayMode || /^replay\b/i.test(normalized)) return;
-  if (/h\.o\.l\.e/i.test(normalized)) return;
+  if (!shouldStatusFeedTicker(normalized)) return;
   const tone = /error|no pude|fall/i.test(normalized)
     ? "danger"
     : /record|h\.o\.l\.e|demo|pausa|replay/i.test(normalized)
@@ -3791,6 +3869,7 @@ function formatCommentaryTemplate(template, data = {}) {
     if (key === "player") return getCommentaryPlayerName();
     if (key === "score") return formatAdminNumber(data.score ?? gameState.score);
     if (key === "moves") return formatAdminNumber(data.moves ?? moveSequence);
+    if (key === "minutes") return formatAdminNumber(data.minutes ?? 0);
     if (key === "mode") return data.mode || `${boardSize}x${boardSize}`;
     if (key === "value") return String(data.value ?? "");
     return String(data[key] ?? "");
@@ -3813,6 +3892,21 @@ function announceMatchCommentary(category, data = {}, tone = "normal") {
   const template = pickCommentaryLine(category);
   if (!template) return;
   setTickerMessage(formatCommentaryTemplate(template, data), tone);
+}
+
+function shouldStatusFeedTicker(message) {
+  const normalized = String(message || "").trim();
+  if (!normalized) return false;
+  if (replayMode || /^replay\b/i.test(normalized)) return false;
+  if (/h\.o\.l\.e/i.test(normalized)) return false;
+  if (/^\d+\s+minutos?\s+de\s+partida\.?$/i.test(normalized)) return false;
+  if (/musica activada|musica desactivada|siguiente pista|pista anterior|reiniciando pista/i.test(normalized)) return false;
+  if (/sonido activado|sonido desactivado/i.test(normalized)) return false;
+  if (/modo avanzado|alias|pin|creditos suficientes|panel|logout|sesion avanzada/i.test(normalized)) return false;
+  if (/slot \d+ cargado|slot \d+|partida guardada|partida recuperada/i.test(normalized)) return false;
+  if (/cargando replay|replay no disponible|error al cargar replay|enviando record|record global enviado|subiendo replay/i.test(normalized)) return false;
+  if (/prepara apuestas y pulsa nueva partida para empezar/i.test(normalized)) return false;
+  return true;
 }
 
 function setTickerMessage(message, tone = "normal") {
@@ -5685,8 +5779,14 @@ function move(direction) {
         announceMatchCommentary("tile128", { value: highestMerge }, "normal");
       } else if (crossedScoreBucket && scoreBucket > 0) {
         announceMatchCommentary("score", { score: gameState.score }, "normal");
+      } else if (nextMoveNumber > 0 && nextMoveNumber % 5 === 0) {
+        announceMatchCommentary("build", { moves: nextMoveNumber }, "normal");
+      } else if (nextMoveNumber > 0 && nextMoveNumber % 7 === 0) {
+        announceMatchCommentary("danger", { moves: nextMoveNumber }, "accent");
       } else if (nextMoveNumber > 0 && nextMoveNumber % 8 === 0) {
         announceMatchCommentary("pressure", { moves: nextMoveNumber }, "normal");
+      } else if (nextMoveNumber > 0 && nextMoveNumber % 11 === 0) {
+        announceMatchCommentary("comeback", { moves: nextMoveNumber }, "accent");
       }
     }
     pushHistoryEntry(direction);
