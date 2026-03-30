@@ -606,7 +606,7 @@ function updateAudioToggleButton() {
 
 function updateMusicGain() {
   if (!audioMusicGain) return;
-  const target = musicEnabled ? Math.max(0.0001, musicVolume * 0.55) : 0.0001;
+  const target = musicEnabled ? Math.max(0.0001, musicVolume * 1.1) : 0.0001;
   audioMusicGain.gain.setTargetAtTime(target, audioContext?.currentTime || 0, 0.08);
 }
 
@@ -5900,7 +5900,7 @@ function scheduleMusicTrack(context, track, startAt) {
         startAt: barStart,
         duration: barDuration * 0.92,
         type: track.pad,
-        volume: 0.017,
+        volume: 0.036,
       });
     });
 
@@ -5913,7 +5913,7 @@ function scheduleMusicTrack(context, track, startAt) {
           startAt: stepStart,
           duration: stepDuration * 0.82,
           type: track.lead,
-          volume: 0.032,
+          volume: 0.072,
         });
       }
 
@@ -5924,7 +5924,7 @@ function scheduleMusicTrack(context, track, startAt) {
           startAt: stepStart,
           duration: stepDuration * 0.9,
           type: "triangle",
-          volume: 0.05,
+          volume: 0.105,
           slideTo: midiToFrequency(getScaleMidi(track, bassDegree, -1)) * 0.985,
         });
       }
