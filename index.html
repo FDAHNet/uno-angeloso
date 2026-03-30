@@ -474,38 +474,47 @@
         <div id="admin-panel-status" class="admin-panel-status">Pulsa C T R L durante la partida para abrir este panel.</div>
         <div id="admin-summary-grid" class="admin-summary-grid"></div>
         <div class="admin-sections">
-          <section class="admin-card">
+          <section class="admin-card admin-collapsible-card" data-admin-section="users">
             <div class="admin-card-head">
-              <h3>Usuarios Avanzados</h3>
+              <button type="button" class="admin-section-toggle" data-admin-section-toggle="users" aria-expanded="true">
+                <span class="admin-section-chevron" aria-hidden="true">&gt;</span>
+                <h3>Usuarios Avanzados</h3>
+              </button>
             </div>
+            <div class="admin-section-content">
             <div class="admin-table-wrap admin-table-wrap-tall">
               <table class="admin-table">
                 <thead>
                   <tr>
-                    <th>Alias</th>
-                    <th>Creditos</th>
-                    <th>Partidas</th>
-                    <th>Normal</th>
-                    <th>H.O.L.E.</th>
-                    <th>Apostado</th>
-                    <th>Pagado</th>
-                    <th>Mejor</th>
-                    <th>Ultimo acceso</th>
+                    <th><button type="button" class="admin-sort-button" data-admin-sort-table="users" data-admin-sort-key="alias">Alias</button></th>
+                    <th><button type="button" class="admin-sort-button" data-admin-sort-table="users" data-admin-sort-key="credits">Creditos</button></th>
+                    <th><button type="button" class="admin-sort-button" data-admin-sort-table="users" data-admin-sort-key="gamesPlayed">Partidas</button></th>
+                    <th><button type="button" class="admin-sort-button" data-admin-sort-table="users" data-admin-sort-key="normalGames">Normal</button></th>
+                    <th><button type="button" class="admin-sort-button" data-admin-sort-table="users" data-admin-sort-key="holeGames">H.O.L.E.</button></th>
+                    <th><button type="button" class="admin-sort-button" data-admin-sort-table="users" data-admin-sort-key="totalWagered">Apostado</button></th>
+                    <th><button type="button" class="admin-sort-button" data-admin-sort-table="users" data-admin-sort-key="totalPayout">Pagado</button></th>
+                    <th><button type="button" class="admin-sort-button" data-admin-sort-table="users" data-admin-sort-key="bestScore">Mejor</button></th>
+                    <th><button type="button" class="admin-sort-button" data-admin-sort-table="users" data-admin-sort-key="lastSeen">Ultimo acceso</button></th>
                     <th>Accion</th>
                   </tr>
                 </thead>
                 <tbody id="admin-users-body"></tbody>
               </table>
             </div>
+            </div>
           </section>
-          <section class="admin-card">
+          <section class="admin-card admin-collapsible-card" data-admin-section="bets">
             <div class="admin-card-head">
-              <h3>Tipos de Apuesta</h3>
+              <button type="button" class="admin-section-toggle" data-admin-section-toggle="bets" aria-expanded="true">
+                <span class="admin-section-chevron" aria-hidden="true">&gt;</span>
+                <h3>Tipos de Apuesta</h3>
+              </button>
               <div class="admin-bets-editor-actions">
                 <button id="admin-add-bet-button" type="button" class="secondary-button">Nueva apuesta</button>
                 <button id="admin-save-bets-button" type="button">Guardar apuestas</button>
               </div>
             </div>
+            <div class="admin-section-content">
             <div class="admin-table-wrap">
               <table class="admin-table admin-bets-table">
                 <thead>
@@ -524,25 +533,31 @@
                 <tbody id="admin-bets-body"></tbody>
               </table>
             </div>
-          </section>
-          <section class="admin-card">
-            <div class="admin-card-head">
-              <h3>Records Globales</h3>
             </div>
+          </section>
+          <section class="admin-card admin-collapsible-card" data-admin-section="records">
+            <div class="admin-card-head">
+              <button type="button" class="admin-section-toggle" data-admin-section-toggle="records" aria-expanded="true">
+                <span class="admin-section-chevron" aria-hidden="true">&gt;</span>
+                <h3>Records Globales</h3>
+              </button>
+            </div>
+            <div class="admin-section-content">
             <div class="admin-table-wrap admin-table-wrap-tall">
               <table class="admin-table admin-records-table">
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>Fecha</th>
-                    <th>Modo</th>
-                    <th>Categoria</th>
-                    <th>Jugador</th>
-                    <th>Puntos</th>
+                    <th><button type="button" class="admin-sort-button" data-admin-sort-table="records" data-admin-sort-key="createdAt">Fecha</button></th>
+                    <th><button type="button" class="admin-sort-button" data-admin-sort-table="records" data-admin-sort-key="mode">Modo</button></th>
+                    <th><button type="button" class="admin-sort-button" data-admin-sort-table="records" data-admin-sort-key="category">Categoria</button></th>
+                    <th><button type="button" class="admin-sort-button" data-admin-sort-table="records" data-admin-sort-key="initials">Jugador</button></th>
+                    <th><button type="button" class="admin-sort-button" data-admin-sort-table="records" data-admin-sort-key="score">Puntos</button></th>
                   </tr>
                 </thead>
                 <tbody id="admin-records-body"></tbody>
               </table>
+            </div>
             </div>
           </section>
         </div>

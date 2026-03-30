@@ -611,6 +611,19 @@ let adminPinGateOpen = false;
 let adminPanelLoading = false;
 let adminOverview = null;
 let adminBetDefinitionsDraft = [];
+let adminSectionOpen = {
+  users: true,
+  bets: true,
+  records: true,
+};
+let adminUsersSort = {
+  key: "credits",
+  direction: "desc",
+};
+let adminRecordsSort = {
+  key: "score",
+  direction: "desc",
+};
 let adminSelectedUserAlias = "";
 let adminSelectedUserData = null;
 let adminUserLoading = false;
@@ -1464,8 +1477,89 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
+function compareAdminValues(a, b, direction = "asc") {
+  const dir = direction === "asc" ? 1 : -1;
+  if (typeof a === "number" || typeof b === "number") {
+    return ((Number(a) || 0) - (Number(b) || 0)) * dir;
+  }
+  const textA = String(a ?? "").trim().toLowerCase();
+  const textB = String(b ?? "").trim().toLowerCase();
+  return textA.localeCompare(textB, "es") * dir;
+}
+
+function getSortedAdminPlayers(players) {
+  const { key, direction } = adminUsersSort;
+  return [...players].sort((left, right) => {
+    const valueLeft = key === "lastSeen" ? new Date(left.lastSeen || 0).getTime() : left[key];
+    const valueRight = key === "lastSeen" ? new Date(right.lastSeen || 0).getTime() : right[key];
+    const primary = compareAdminValues(valueLeft, valueRight, direction);
+    if (primary !== 0) return primary;
+    return compareAdminValues(left.alias, right.alias, "asc");
+  });
+}
+
+function getSortedAdminRecords(records) {
+  const { key, direction } = adminRecordsSort;
+  return [...records].sort((left, right) => {
+    const valueLeft = key === "createdAt" ? new Date(left.createdAt || 0).getTime() : key === "category"
+      ? (RECORD_CATEGORY_LABELS[normalizeRecordCategory(left.category)] || "Normal")
+      : left[key];
+    const valueRight = key === "createdAt" ? new Date(right.createdAt || 0).getTime() : key === "category"
+      ? (RECORD_CATEGORY_LABELS[normalizeRecordCategory(right.category)] || "Normal")
+      : right[key];
+    const primary = compareAdminValues(valueLeft, valueRight, direction);
+    if (primary !== 0) return primary;
+    return compareAdminValues(right.score, left.score, "asc");
+  });
+}
+
+function updateAdminSectionUI() {
+  document.querySelectorAll(".admin-collapsible-card[data-admin-section]").forEach((card) => {
+    const section = card.getAttribute("data-admin-section");
+    const isOpen = adminSectionOpen[section] !== false;
+    card.classList.toggle("is-collapsed", !isOpen);
+    const toggle = card.querySelector("[data-admin-section-toggle]");
+    if (toggle) toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  });
+}
+
+function updateAdminSortButtons() {
+  document.querySelectorAll(".admin-sort-button[data-admin-sort-table]").forEach((button) => {
+    const table = button.getAttribute("data-admin-sort-table");
+    const key = button.getAttribute("data-admin-sort-key");
+    const config = table === "users" ? adminUsersSort : adminRecordsSort;
+    const active = config?.key === key;
+    button.classList.toggle("is-sorted", active);
+    if (active) {
+      button.setAttribute("data-sort-direction", config.direction);
+    } else {
+      button.removeAttribute("data-sort-direction");
+    }
+  });
+}
+
+function toggleAdminSection(section) {
+  if (!Object.prototype.hasOwnProperty.call(adminSectionOpen, section)) return;
+  adminSectionOpen[section] = !adminSectionOpen[section];
+  updateAdminSectionUI();
+}
+
+function toggleAdminSort(table, key) {
+  if (!table || !key) return;
+  const target = table === "users" ? adminUsersSort : adminRecordsSort;
+  if (target.key === key) {
+    target.direction = target.direction === "asc" ? "desc" : "asc";
+  } else {
+    target.key = key;
+    target.direction = key === "alias" || key === "mode" || key === "category" || key === "initials" ? "asc" : "desc";
+  }
+  renderAdminOverview();
+}
+
 function renderAdminOverview() {
   if (!adminSummaryGridElement || !adminRecordsBodyElement || !adminUsersBodyElement || !adminPanelStatusElement) return;
+  updateAdminSectionUI();
+  updateAdminSortButtons();
 
   if (!adminOverview) {
     adminSummaryGridElement.innerHTML = "";
@@ -1479,7 +1573,9 @@ function renderAdminOverview() {
     return;
   }
 
-  const { summary = {}, players = [], records = [], betDefinitions = [] } = adminOverview;
+  const { summary = {}, players = [], records = [] } = adminOverview;
+  const sortedPlayers = getSortedAdminPlayers(players);
+  const sortedRecords = getSortedAdminRecords(records);
   adminPanelStatusElement.textContent = `Actualizado: ${formatAdminDate(summary.generatedAt)}. Usuarios ${formatAdminNumber(summary.totalUsers)}.`;
 
   const summaryCards = [
@@ -1497,10 +1593,10 @@ function renderAdminOverview() {
     </article>
   `).join("");
 
-  if (!records.length) {
+  if (!sortedRecords.length) {
     adminRecordsBodyElement.innerHTML = '<tr><td class="admin-table-empty" colspan="6">Todavia no hay records globales.</td></tr>';
   } else {
-    adminRecordsBodyElement.innerHTML = records.map((record, index) => `
+    adminRecordsBodyElement.innerHTML = sortedRecords.map((record, index) => `
       <tr>
         <td>${escapeHtml(index + 1)}</td>
         <td>${escapeHtml(formatAdminDate(record.createdAt))}</td>
@@ -1512,13 +1608,14 @@ function renderAdminOverview() {
     `).join("");
   }
 
-  if (!players.length) {
+  if (!sortedPlayers.length) {
     adminUsersBodyElement.innerHTML = '<tr><td class="admin-table-empty" colspan="10">Todavia no hay jugadores avanzados.</td></tr>';
+    updateAdminSortButtons();
     renderAdminUserPanel();
     return;
   }
 
-  adminUsersBodyElement.innerHTML = players.map((player) => `
+  adminUsersBodyElement.innerHTML = sortedPlayers.map((player) => `
     <tr>
       <td><button type="button" class="admin-user-open-button" data-admin-open="${escapeHtml(player.alias)}">${escapeHtml(player.alias)}</button></td>
       <td>${escapeHtml(formatAdminNumber(player.credits))}</td>
@@ -1536,8 +1633,8 @@ function renderAdminOverview() {
   adminUsersBodyElement.removeEventListener("click", handleAdminUserTableClick);
   adminUsersBodyElement.addEventListener("click", handleAdminUserTableClick);
 
-  adminBetDefinitionsDraft = cloneAdvancedBetDefinitions(betDefinitions.length ? betDefinitions : advancedBetDefinitions);
   renderAdminBetDefinitionsEditor();
+  updateAdminSortButtons();
   renderAdminUserPanel();
 }
 
@@ -1560,6 +1657,11 @@ async function loadAdminOverview(force = false) {
       refreshAdvancedBetDraftAgainstDefinitions();
       updateAdvancedModeUI();
     }
+    adminBetDefinitionsDraft = cloneAdvancedBetDefinitions(
+      Array.isArray(adminOverview?.betDefinitions) && adminOverview.betDefinitions.length
+        ? adminOverview.betDefinitions
+        : advancedBetDefinitions
+    );
   } catch (error) {
     adminPanelStatusElement.textContent = `No pude cargar el panel: ${error.message}`;
   } finally {
@@ -6559,6 +6661,24 @@ closeAdminButton?.addEventListener("click", () => {
   setAdminPanelOpen(false);
 });
 refreshAdminButton?.addEventListener("click", () => { void loadAdminOverview(true); });
+adminPanelElement?.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  const sectionToggle = target.closest("[data-admin-section-toggle]");
+  if (sectionToggle instanceof Element) {
+    event.preventDefault();
+    toggleAdminSection(sectionToggle.getAttribute("data-admin-section-toggle") || "");
+    return;
+  }
+  const sortButton = target.closest(".admin-sort-button[data-admin-sort-table]");
+  if (sortButton instanceof Element) {
+    event.preventDefault();
+    toggleAdminSort(
+      sortButton.getAttribute("data-admin-sort-table") || "",
+      sortButton.getAttribute("data-admin-sort-key") || "",
+    );
+  }
+});
 adminPinSubmitButton?.addEventListener("click", handleAdminPinSubmit);
 adminPinCloseButton?.addEventListener("click", closeAdminPinGate);
 adminPinXButton?.addEventListener("click", closeAdminPinGate);

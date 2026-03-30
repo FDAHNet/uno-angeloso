@@ -3059,6 +3059,10 @@ button:hover {
   gap: 18px;
 }
 
+.admin-collapsible-card {
+  overflow: hidden;
+}
+
 .admin-panel-header {
   padding-right: 52px;
 }
@@ -3077,6 +3081,48 @@ button:hover {
 
 .admin-card-head h3 {
   font-size: 0.96rem;
+}
+
+.admin-section-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.admin-section-chevron {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  min-width: 18px;
+  color: #ffd166;
+  font-family: "Press Start 2P", "Space Grotesk", sans-serif;
+  font-size: 0.72rem;
+  line-height: 1;
+  transform: rotate(90deg);
+  transition: transform 220ms ease, color 180ms ease;
+}
+
+.admin-collapsible-card.is-collapsed .admin-section-chevron {
+  transform: rotate(0deg);
+  color: rgba(255, 209, 102, 0.72);
+}
+
+.admin-section-toggle:hover .admin-section-chevron,
+.admin-section-toggle:focus-visible .admin-section-chevron {
+  color: #fff0ae;
+}
+
+.admin-section-toggle:focus-visible {
+  outline: 2px solid rgba(255, 209, 102, 0.38);
+  outline-offset: 4px;
+  border-radius: 10px;
 }
 
 .admin-panel-copy,
@@ -3160,6 +3206,35 @@ button:hover {
   gap: 14px;
 }
 
+.admin-section-content {
+  display: grid;
+  grid-template-rows: 1fr;
+  min-height: 0;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    grid-template-rows 320ms ease,
+    opacity 220ms ease,
+    transform 280ms ease,
+    margin-top 280ms ease;
+}
+
+.admin-section-content > * {
+  min-height: 0;
+}
+
+.admin-collapsible-card.is-collapsed .admin-section-content {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(-8px);
+  margin-top: -6px;
+  pointer-events: none;
+}
+
+.admin-collapsible-card.is-collapsed .admin-section-content > * {
+  overflow: hidden;
+}
+
 .admin-card-wide {
   flex: 1 1 68%;
 }
@@ -3196,6 +3271,51 @@ button:hover {
   font-size: 0.72rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.admin-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.admin-sort-button::after {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid rgba(255, 255, 255, 0.3);
+  opacity: 0.4;
+  transform: translateY(1px);
+  transition: opacity 180ms ease, transform 180ms ease, border-color 180ms ease;
+}
+
+.admin-sort-button.is-sorted {
+  color: #fff1bf;
+}
+
+.admin-sort-button.is-sorted::after {
+  opacity: 1;
+  border-top-color: #ffd166;
+}
+
+.admin-sort-button[data-sort-direction="asc"]::after {
+  transform: rotate(180deg) translateY(1px);
+}
+
+.admin-sort-button:hover,
+.admin-sort-button:focus-visible {
+  color: #fff5d1;
+  outline: none;
 }
 
 .admin-table th,
