@@ -2023,13 +2023,20 @@ button:hover {
   overflow-wrap: anywhere;
 }
 
-.music-next-button {
+.music-track-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+.music-track-button {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
   padding: 6px 8px;
-  font-size: 0.58rem;
-  line-height: 1.1;
+  font-size: 0.55rem;
+  line-height: 1.08;
 }
 
 .music-volume-control {

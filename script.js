@@ -17,6 +17,7 @@ const AUDIO_ENABLED_KEY = "smooth-2048-audio-enabled";
 const MUSIC_ENABLED_KEY = "smooth-2048-music-enabled";
 const MUSIC_VOLUME_KEY = "smooth-2048-music-volume";
 const MUSIC_TRACK_INDEX_KEY = "smooth-2048-music-track-index";
+const MUSIC_BASE_URL = "https://datos.us/c/2048-music/";
 const THEME_KEY = "smooth-2048-theme";
 const SESSION_SNAPSHOT_KEY = "smooth-2048-session-snapshot";
 const SAVE_SLOTS_KEY = "smooth-2048-save-slots";
@@ -41,21 +42,13 @@ const RECORD_CATEGORY_LABELS = {
 const DEFAULT_ADVANCED_CREDITS = 100;
 const HOLE_SPEED_OPTIONS = [1, 2, 4, 8, 16, 32];
 const ADVANCED_BET_STAKES = [0, 5, 10, 20, 50];
-const MUSIC_SCALE_MAJOR = [0, 2, 4, 5, 7, 9, 11];
-const MUSIC_SCALE_MINOR = [0, 2, 3, 5, 7, 8, 10];
-const MUSIC_MIN_TRACK_DURATION_MS = 60000;
 const MUSIC_TRACK_GAP_MS = 5000;
 const MUSIC_TRACKS = [
-  { name: "Neon Drive", tempo: 104, mode: "minor", rootMidi: 57, progression: [0, 5, 3, 4], melody: [0, 2, 4, 2, 6, 4, 2, 1], bass: [0, null, 0, null, 5, null, 3, null], lead: "square", pad: "triangle" },
-  { name: "Sunset Loop", tempo: 96, mode: "major", rootMidi: 60, progression: [0, 4, 5, 3], melody: [0, 2, 4, 5, 4, 2, 1, 0], bass: [0, null, 4, null, 5, null, 3, null], lead: "triangle", pad: "sine" },
-  { name: "Laser Metro", tempo: 122, mode: "minor", rootMidi: 55, progression: [0, 3, 4, 3], melody: [0, 4, 5, 4, 2, 4, 6, 4], bass: [0, 0, 3, 3, 4, 4, 3, 3], lead: "sawtooth", pad: "triangle" },
-  { name: "Pixel Night", tempo: 88, mode: "minor", rootMidi: 52, progression: [0, 5, 4, 5], melody: [0, 1, 2, 4, 2, 1, 0, null], bass: [0, null, 5, null, 4, null, 5, null], lead: "square", pad: "sine" },
-  { name: "Arcade Breeze", tempo: 110, mode: "major", rootMidi: 62, progression: [0, 3, 4, 0], melody: [0, 2, 4, 6, 4, 2, 1, 0], bass: [0, null, 3, null, 4, null, 0, null], lead: "triangle", pad: "triangle" },
-  { name: "Turbo Grid", tempo: 128, mode: "minor", rootMidi: 50, progression: [0, 4, 5, 4], melody: [0, 2, 4, 7, 6, 4, 2, 1], bass: [0, 0, 4, 4, 5, 5, 4, 4], lead: "square", pad: "sawtooth" },
-  { name: "Crystal Run", tempo: 100, mode: "major", rootMidi: 64, progression: [0, 5, 3, 4], melody: [0, 4, 5, 7, 5, 4, 2, 0], bass: [0, null, 5, null, 3, null, 4, null], lead: "sine", pad: "triangle" },
-  { name: "Afterglow", tempo: 92, mode: "minor", rootMidi: 58, progression: [0, 3, 5, 4], melody: [0, 2, 3, 5, 3, 2, 1, null], bass: [0, null, 3, null, 5, null, 4, null], lead: "triangle", pad: "sine" },
-  { name: "Skyline Pulse", tempo: 116, mode: "major", rootMidi: 59, progression: [0, 4, 3, 5], melody: [0, 2, 4, 5, 7, 5, 4, 2], bass: [0, 0, 4, null, 3, null, 5, null], lead: "square", pad: "triangle" },
-  { name: "Vector Dream", tempo: 106, mode: "minor", rootMidi: 54, progression: [0, 5, 4, 3], melody: [0, 2, 4, 6, 4, 3, 2, 1], bass: [0, null, 5, null, 4, null, 3, null], lead: "sine", pad: "triangle" },
+  { name: "Magical Sound Shower", file: "01. Magical Sound Shower.mp3" },
+  { name: "Splash Wave", file: "02. Splash Wave.mp3" },
+  { name: "Passing Breeze", file: "03. Passing Breeze.mp3" },
+  { name: "Last Wave", file: "04. Last Wave.mp3" },
+  { name: "Step on Beat", file: "05. Step on Beat.mp3" },
 ];
 const ADVANCED_BET_RULES = [
   { value: "reasonUser", label: "Finaliza BY USER" },
@@ -348,6 +341,7 @@ const gameOverOverlayElement = document.getElementById("game-over-overlay");
 const gameOverReasonElement = document.getElementById("game-over-reason");
 const audioToggleButton = document.getElementById("audio-toggle-button");
 const musicToggleButton = document.getElementById("music-toggle-button");
+const musicPrevButton = document.getElementById("music-prev-button");
 const musicNextButton = document.getElementById("music-next-button");
 const musicVolumeSlider = document.getElementById("music-volume-slider");
 const musicTrackNameElement = document.getElementById("music-track-name");
@@ -482,13 +476,10 @@ let audioUnlocked = false;
 let audioEnabled = localStorage.getItem(AUDIO_ENABLED_KEY) === "true";
 let musicEnabled = localStorage.getItem(MUSIC_ENABLED_KEY) === "true";
 let musicVolume = Math.min(1, Math.max(0, Number(localStorage.getItem(MUSIC_VOLUME_KEY) || 0.28)));
-let currentMusicTrackIndex = Math.max(0, Number(localStorage.getItem(MUSIC_TRACK_INDEX_KEY) || 0)) % 10;
-let musicPlaybackToken = 0;
+let currentMusicTrackIndex = Math.max(0, Number(localStorage.getItem(MUSIC_TRACK_INDEX_KEY) || 0)) % MUSIC_TRACKS.length;
 let musicLoopTimeout = null;
-let musicTrackStartedAt = 0;
-let musicTrackDurationMs = 0;
 let musicTimerInterval = null;
-let activeMusicChannelGain = null;
+let musicAudioElement = null;
 let recordSaved = false;
 let pendingGlobalRecord = null;
 let advancedMode = false;
@@ -614,9 +605,8 @@ function updateAudioToggleButton() {
 }
 
 function updateMusicGain() {
-  if (!audioMusicGain) return;
-  const target = musicEnabled ? Math.max(0.0001, musicVolume * 3.2) : 0.0001;
-  audioMusicGain.gain.setTargetAtTime(target, audioContext?.currentTime || 0, 0.08);
+  if (!musicAudioElement) return;
+  musicAudioElement.volume = musicEnabled ? musicVolume : 0;
 }
 
 function formatMusicTimer(ms) {
@@ -624,6 +614,57 @@ function formatMusicTimer(ms) {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function getCurrentMusicTrack() {
+  return MUSIC_TRACKS[currentMusicTrackIndex % MUSIC_TRACKS.length] || null;
+}
+
+function getMusicTrackUrl(track) {
+  return track ? new URL(track.file, MUSIC_BASE_URL).toString() : "";
+}
+
+function ensureMusicAudioElement() {
+  if (musicAudioElement) return musicAudioElement;
+  musicAudioElement = new Audio();
+  musicAudioElement.preload = "metadata";
+  musicAudioElement.crossOrigin = "anonymous";
+  musicAudioElement.addEventListener("loadedmetadata", () => {
+    renderMusicInfo();
+  });
+  musicAudioElement.addEventListener("timeupdate", () => {
+    renderMusicInfo();
+  });
+  musicAudioElement.addEventListener("play", () => {
+    startMusicTimer();
+    renderMusicInfo();
+  });
+  musicAudioElement.addEventListener("pause", () => {
+    renderMusicInfo();
+  });
+  musicAudioElement.addEventListener("ended", () => {
+    stopMusicTimer();
+    renderMusicInfo();
+    if (musicLoopTimeout) {
+      window.clearTimeout(musicLoopTimeout);
+      musicLoopTimeout = null;
+    }
+    if (!musicEnabled) return;
+    musicLoopTimeout = window.setTimeout(() => {
+      musicLoopTimeout = null;
+      if (!musicEnabled) return;
+      currentMusicTrackIndex = (currentMusicTrackIndex + 1) % MUSIC_TRACKS.length;
+      localStorage.setItem(MUSIC_TRACK_INDEX_KEY, String(currentMusicTrackIndex));
+      startMusicPlayback({ restart: true });
+    }, MUSIC_TRACK_GAP_MS);
+  });
+  musicAudioElement.addEventListener("error", () => {
+    stopMusicTimer();
+    renderMusicInfo();
+    setStatus(`No se pudo cargar la pista ${getCurrentMusicTrack()?.name || ""}.`);
+  });
+  updateMusicGain();
+  return musicAudioElement;
 }
 
 function stopMusicTimer() {
@@ -634,13 +675,15 @@ function stopMusicTimer() {
 }
 
 function renderMusicInfo() {
-  const track = MUSIC_TRACKS[currentMusicTrackIndex % MUSIC_TRACKS.length];
+  const track = getCurrentMusicTrack();
   if (musicTrackNameElement) {
     musicTrackNameElement.textContent = track?.name || "Sin pista";
   }
   if (musicTrackTimerElement) {
-    const elapsed = musicEnabled && musicTrackStartedAt ? Math.min(musicTrackDurationMs, Date.now() - musicTrackStartedAt) : 0;
-    musicTrackTimerElement.textContent = `${formatMusicTimer(elapsed)} / ${formatMusicTimer(musicTrackDurationMs)}`;
+    const audio = musicAudioElement;
+    const elapsedMs = audio ? Math.round((audio.currentTime || 0) * 1000) : 0;
+    const durationMs = audio && Number.isFinite(audio.duration) ? Math.round(audio.duration * 1000) : 0;
+    musicTrackTimerElement.textContent = `${formatMusicTimer(elapsedMs)} / ${formatMusicTimer(durationMs)}`;
   }
 }
 
@@ -5900,149 +5943,84 @@ function playTimeMilestoneSound() {
   });
 }
 
-function midiToFrequency(midi) {
-  return 440 * (2 ** ((midi - 69) / 12));
-}
-
-function getMusicScale(track) {
-  return track.mode === "major" ? MUSIC_SCALE_MAJOR : MUSIC_SCALE_MINOR;
-}
-
-function getScaleMidi(track, degree, octave = 0) {
-  const scale = getMusicScale(track);
-  const normalizedDegree = ((degree % scale.length) + scale.length) % scale.length;
-  const octaveShift = Math.floor(degree / scale.length);
-  return track.rootMidi + scale[normalizedDegree] + ((octave + octaveShift) * 12);
-}
-
-function scheduleMusicTone(context, targetGain, { frequency, startAt, duration, type = "sine", volume = 0.05, slideTo = null }) {
-  const oscillator = context.createOscillator();
-  const gain = context.createGain();
-  oscillator.type = type;
-  oscillator.frequency.setValueAtTime(frequency, startAt);
-  if (slideTo) oscillator.frequency.exponentialRampToValueAtTime(slideTo, startAt + duration);
-  gain.gain.setValueAtTime(0.0001, startAt);
-  gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, volume), startAt + 0.02);
-  gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
-  oscillator.connect(gain);
-  gain.connect(targetGain);
-  oscillator.start(startAt);
-  oscillator.stop(startAt + duration + 0.03);
-}
-
-function scheduleMusicTrack(context, targetGain, track, startAt) {
-  const barDuration = (60 / track.tempo) * 4;
-  const stepDuration = barDuration / 8;
-  const loopDuration = barDuration * track.progression.length;
-  const repeats = Math.max(1, Math.ceil(MUSIC_MIN_TRACK_DURATION_MS / Math.max(1, loopDuration * 1000)));
-
-  for (let repeatIndex = 0; repeatIndex < repeats; repeatIndex += 1) {
-    const repeatOffset = repeatIndex * loopDuration;
-    track.progression.forEach((barDegree, barIndex) => {
-      const barStart = startAt + repeatOffset + (barIndex * barDuration);
-      const chordDegrees = [barDegree, barDegree + 2, barDegree + 4];
-      chordDegrees.forEach((degree, chordIndex) => {
-        scheduleMusicTone(context, targetGain, {
-          frequency: midiToFrequency(getScaleMidi(track, degree, chordIndex === 2 ? 1 : 0)),
-          startAt: barStart,
-          duration: barDuration * 0.92,
-          type: track.pad,
-          volume: 0.08,
-        });
-      });
-
-      for (let step = 0; step < 8; step += 1) {
-        const stepStart = barStart + (step * stepDuration);
-        const melodyDegree = track.melody[step % track.melody.length];
-        if (melodyDegree !== null && melodyDegree !== undefined) {
-          scheduleMusicTone(context, targetGain, {
-            frequency: midiToFrequency(getScaleMidi(track, barDegree + melodyDegree, 1)),
-            startAt: stepStart,
-            duration: stepDuration * 0.82,
-            type: track.lead,
-            volume: 0.16,
-          });
-        }
-
-        const bassDegree = track.bass[step % track.bass.length];
-        if (bassDegree !== null && bassDegree !== undefined) {
-          scheduleMusicTone(context, targetGain, {
-            frequency: midiToFrequency(getScaleMidi(track, bassDegree, -1)),
-            startAt: stepStart,
-            duration: stepDuration * 0.9,
-            type: "triangle",
-            volume: 0.22,
-            slideTo: midiToFrequency(getScaleMidi(track, bassDegree, -1)) * 0.985,
-          });
-        }
-      }
-    });
-  }
-  return Math.max(MUSIC_MIN_TRACK_DURATION_MS, Math.round(loopDuration * repeats * 1000)) / 1000;
-}
-
 function stopMusicPlayback() {
-  musicPlaybackToken += 1;
   if (musicLoopTimeout) {
     window.clearTimeout(musicLoopTimeout);
     musicLoopTimeout = null;
   }
   stopMusicTimer();
-  if (activeMusicChannelGain && audioContext) {
-    const now = audioContext.currentTime;
-    try {
-      activeMusicChannelGain.gain.cancelScheduledValues(now);
-      activeMusicChannelGain.gain.setValueAtTime(activeMusicChannelGain.gain.value, now);
-      activeMusicChannelGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
-      window.setTimeout(() => {
-        try {
-          activeMusicChannelGain.disconnect();
-        } catch {}
-      }, 140);
-    } catch {}
-    activeMusicChannelGain = null;
+  if (musicAudioElement) {
+    musicAudioElement.pause();
   }
   updateMusicGain();
+  renderMusicInfo();
 }
 
 function startMusicPlayback(options = {}) {
-  const { fadeOutFirst = true } = options;
+  const { restart = false } = options;
   if (!musicEnabled) return;
-  unlockAudio().then((context) => {
-    if (!context || context.state !== "running") return;
-    if (fadeOutFirst) {
-      stopMusicPlayback();
-    }
-    updateMusicGain();
-    const track = MUSIC_TRACKS[currentMusicTrackIndex % MUSIC_TRACKS.length];
-    const token = musicPlaybackToken;
-    const startAt = context.currentTime + (fadeOutFirst ? 0.16 : 0.05);
-    const channelGain = context.createGain();
-    channelGain.gain.setValueAtTime(1, startAt);
-    channelGain.connect(audioMusicGain || audioMasterGain);
-    activeMusicChannelGain = channelGain;
-    const duration = scheduleMusicTrack(context, channelGain, track, startAt);
-    musicTrackStartedAt = Date.now();
-    musicTrackDurationMs = Math.round((duration * 1000) + MUSIC_TRACK_GAP_MS);
-    startMusicTimer();
-    const nextIndex = (currentMusicTrackIndex + 1) % MUSIC_TRACKS.length;
-    musicLoopTimeout = window.setTimeout(() => {
-      if (token !== musicPlaybackToken || !musicEnabled) return;
-      currentMusicTrackIndex = nextIndex;
-      localStorage.setItem(MUSIC_TRACK_INDEX_KEY, String(currentMusicTrackIndex));
-      startMusicPlayback();
-    }, Math.max(1200, Math.round((duration * 1000) + MUSIC_TRACK_GAP_MS)));
-  }).catch(() => {});
+  const audio = ensureMusicAudioElement();
+  if (!audio) return;
+  if (musicLoopTimeout) {
+    window.clearTimeout(musicLoopTimeout);
+    musicLoopTimeout = null;
+  }
+  const track = getCurrentMusicTrack();
+  const trackUrl = getMusicTrackUrl(track);
+  const shouldReload = audio.dataset.trackUrl !== trackUrl;
+  if (shouldReload) {
+    audio.pause();
+    audio.src = trackUrl;
+    audio.dataset.trackUrl = trackUrl;
+    audio.load();
+  }
+  if (restart && !shouldReload) {
+    audio.currentTime = 0;
+  }
+  updateMusicGain();
+  startMusicTimer();
+  const playPromise = audio.play();
+  if (playPromise?.catch) {
+    playPromise.catch(() => {
+      stopMusicTimer();
+      renderMusicInfo();
+    });
+  }
+  renderMusicInfo();
 }
 
 function nextMusicTrack() {
   currentMusicTrackIndex = (currentMusicTrackIndex + 1) % MUSIC_TRACKS.length;
   localStorage.setItem(MUSIC_TRACK_INDEX_KEY, String(currentMusicTrackIndex));
-  renderMusicInfo();
+  stopMusicPlayback();
   if (musicEnabled) {
-    startMusicPlayback({ fadeOutFirst: true });
-    setStatus(`Siguiente pista: ${MUSIC_TRACKS[currentMusicTrackIndex].name}.`);
+    startMusicPlayback({ restart: true });
+    setStatus(`Siguiente pista: ${getCurrentMusicTrack()?.name}.`);
   }
+  renderMusicInfo();
+}
+
+function previousMusicTrack() {
+  const audio = ensureMusicAudioElement();
+  const shouldRestartCurrent = audio && audio.currentTime > 3;
+  if (shouldRestartCurrent) {
+    audio.currentTime = 0;
+    renderMusicInfo();
+    if (musicEnabled) {
+      const playPromise = audio.play();
+      if (playPromise?.catch) playPromise.catch(() => {});
+      setStatus(`Reiniciando pista: ${getCurrentMusicTrack()?.name}.`);
+    }
+    return;
+  }
+  currentMusicTrackIndex = (currentMusicTrackIndex - 1 + MUSIC_TRACKS.length) % MUSIC_TRACKS.length;
+  localStorage.setItem(MUSIC_TRACK_INDEX_KEY, String(currentMusicTrackIndex));
+  stopMusicPlayback();
+  if (musicEnabled) {
+    startMusicPlayback({ restart: true });
+    setStatus(`Pista anterior: ${getCurrentMusicTrack()?.name}.`);
+  }
+  renderMusicInfo();
 }
 
 function queueMove(direction) {
@@ -6076,11 +6054,10 @@ function toggleMusicEnabled() {
   localStorage.setItem(MUSIC_ENABLED_KEY, String(musicEnabled));
   updateMusicControls();
   if (musicEnabled) {
-    startMusicPlayback();
-    setStatus(`Musica activada. Sonando: ${MUSIC_TRACKS[currentMusicTrackIndex % MUSIC_TRACKS.length].name}.`);
+    startMusicPlayback({ restart: false });
+    setStatus(`Musica activada. Sonando: ${getCurrentMusicTrack()?.name}.`);
   } else {
     stopMusicPlayback();
-    musicTrackStartedAt = 0;
     if (audioContext?.state === "running" && !audioEnabled) {
       audioContext.suspend().catch(() => {});
     }
@@ -6093,9 +6070,6 @@ function setMusicVolumeFromSlider(value) {
   musicVolume = nextVolume;
   localStorage.setItem(MUSIC_VOLUME_KEY, String(musicVolume));
   updateMusicControls();
-  if (musicEnabled) {
-    void unlockAudio();
-  }
 }
 
 function handleKeydown(event) {
@@ -6341,6 +6315,7 @@ boardSizeSelect.addEventListener("change", () => {
 finishButton.addEventListener("click", finishGame);
 audioToggleButton.addEventListener("click", toggleAudioEnabled);
 musicToggleButton?.addEventListener("click", toggleMusicEnabled);
+musicPrevButton?.addEventListener("click", previousMusicTrack);
 musicNextButton?.addEventListener("click", nextMusicTrack);
 musicVolumeSlider?.addEventListener("input", (event) => {
   setMusicVolumeFromSlider(event.target.value);

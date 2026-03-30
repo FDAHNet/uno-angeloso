@@ -236,9 +236,12 @@
             </div>
             <button id="music-toggle-button" type="button" class="secondary-button music-toggle-button" aria-pressed="false">♫ MUSICA OFF</button>
             <div id="music-track-name" class="music-track-name">Sin pista</div>
-            <button id="music-next-button" type="button" class="secondary-button music-next-button">Siguiente pista</button>
+            <div class="music-track-actions">
+              <button id="music-prev-button" type="button" class="secondary-button music-track-button">Pista anterior</button>
+              <button id="music-next-button" type="button" class="secondary-button music-track-button">Siguiente pista</button>
+            </div>
             <label class="music-volume-control" for="music-volume-slider">
-              <span>Volumen</span>
+                <span>Volumen</span>
               <input id="music-volume-slider" type="range" min="0" max="100" step="1" value="28">
             </label>
           </div>
