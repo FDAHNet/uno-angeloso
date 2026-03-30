@@ -4134,8 +4134,6 @@ function renderRecordCardModal() {
 
 function positionRecordCardModal() {
   if (!recordCardModalElement || !bestScoreCardElement) return;
-  const sheet = recordCardModalElement.querySelector(".record-card-modal-sheet");
-  if (!sheet) return;
 
   const cardRect = bestScoreCardElement.getBoundingClientRect();
   const viewportWidth = window.innerWidth;
@@ -4153,9 +4151,9 @@ function positionRecordCardModal() {
   const maxTop = Math.max(12, viewportHeight - Math.min(720, viewportHeight - 24) - 12);
   top = Math.min(top, maxTop);
 
-  sheet.style.width = `${sheetWidth}px`;
-  sheet.style.left = `${Math.round(left)}px`;
-  sheet.style.top = `${Math.round(top)}px`;
+  recordCardModalElement.style.width = `${sheetWidth}px`;
+  recordCardModalElement.style.left = `${Math.round(left)}px`;
+  recordCardModalElement.style.top = `${Math.round(top)}px`;
 }
 
 function setRecordCardModalOpen(nextOpen) {
