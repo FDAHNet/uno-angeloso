@@ -3,6 +3,9 @@ const REPLAY_MOVE_DURATION = 460;
 const REPLAY_STEP_DELAY = 1180;
 const REPLAY_ARROW_LEAD = 520;
 const EFFECT_DURATION = 5000;
+const MAX_SAFE_SLOT_REPLAY_TURNS = 120000;
+const MAX_SAFE_RECORD_REPLAY_TURNS = 500000;
+const MAX_SAFE_RECORD_REPLAY_BYTES = 3_200_000;
 const STORAGE_PREFIX = "smooth-2048-best-score";
 const RECORDS_PREFIX = "smooth-2048-records";
 const MAX_RECORDS_PER_MODE = 10;
@@ -1981,7 +1984,7 @@ function persistSessionSnapshot() {
     boardSize,
     nextTileId,
     gameState: cloneGameState(gameState),
-    currentReplay: currentReplay ? encodeReplayPayload(currentReplay) : null,
+    currentReplay: currentReplay ? buildSafeReplayPayload(currentReplay, { target: "session" }).payload : null,
     journalEntries: cloneJournalEntries(journalEntries),
     moveSequence,
     gameTimerElapsedMs: getElapsedMs(),
@@ -2107,7 +2110,7 @@ function buildPlayableSnapshot() {
     boardSize,
     nextTileId,
     gameState: cloneGameState(gameState),
-    currentReplay: currentReplay ? encodeReplayPayload(currentReplay) : null,
+    currentReplay: currentReplay ? buildSafeReplayPayload(currentReplay, { target: "slot" }).payload : null,
     journalEntries: cloneJournalEntries(journalEntries),
     moveSequence,
     gameTimerElapsedMs: getElapsedMs(),
@@ -2136,10 +2139,16 @@ function saveGameToSlot(slotIndex) {
     mode: `${boardSize}x${boardSize}`,
     snapshot: buildPlayableSnapshot(),
   };
-  saveSaveSlots(slots);
+  try {
+    saveSaveSlots(slots);
+  } catch {
+    slots[slotIndex].snapshot.currentReplay = null;
+    slots[slotIndex].snapshot.replayTruncated = true;
+    saveSaveSlots(slots);
+  }
   renderSaveSlots();
   persistSessionSnapshot();
-  setStatus(`Partida guardada en Slot ${slotIndex + 1}.`);
+  setStatus(slots[slotIndex].snapshot.replayTruncated ? `Partida guardada en Slot ${slotIndex + 1} sin replay completa.` : `Partida guardada en Slot ${slotIndex + 1}.`);
 }
 
 function restorePlayableSnapshot(snapshot) {
@@ -3396,6 +3405,55 @@ function encodeReplayPayload(replay, options = {}) {
   };
 }
 
+function estimateReplayPayloadBytes(payload) {
+  if (!payload) return 0;
+  try {
+    return new TextEncoder().encode(JSON.stringify(payload)).length;
+  } catch {
+    return Number.POSITIVE_INFINITY;
+  }
+}
+
+function buildTruncatedReplayPayload(replay, options = {}) {
+  if (!replay) return null;
+  const payload = encodeReplayPayload(replay, options);
+  if (!payload) return null;
+  payload.turns = [];
+  payload.truncated = true;
+  payload.totalTurns = Array.isArray(replay.turns) ? replay.turns.length : 0;
+  payload.truncatedReason = options.truncatedReason || "size";
+  return payload;
+}
+
+function buildSafeReplayPayload(replay, options = {}) {
+  if (!replay) return { payload: null, truncated: false };
+  const {
+    target = "record",
+  } = options;
+  const maxTurns = target === "slot" || target === "session"
+    ? MAX_SAFE_SLOT_REPLAY_TURNS
+    : MAX_SAFE_RECORD_REPLAY_TURNS;
+
+  const fullPayload = encodeReplayPayload(replay, options);
+  if (!fullPayload) return { payload: null, truncated: false };
+
+  if ((fullPayload.turns?.length || 0) > maxTurns) {
+    return {
+      payload: buildTruncatedReplayPayload(replay, { ...options, truncatedReason: "turns" }),
+      truncated: true,
+    };
+  }
+
+  if (target === "record" && estimateReplayPayloadBytes(fullPayload) > MAX_SAFE_RECORD_REPLAY_BYTES) {
+    return {
+      payload: buildTruncatedReplayPayload(replay, { ...options, truncatedReason: "bytes" }),
+      truncated: true,
+    };
+  }
+
+  return { payload: fullPayload, truncated: false };
+}
+
 function decodeReplayPayload(replay) {
   if (!replay || typeof replay !== "object") return null;
   if (replay.version !== 2) return cloneReplay(replay);
@@ -4313,13 +4371,15 @@ function savePendingRecord(forcedInitials = null) {
     dateStyle: "short",
     timeStyle: "short",
   }).format(now);
-  const replayPayload = currentReplay
-    ? encodeReplayPayload(currentReplay, {
+  const replayBuild = currentReplay
+    ? buildSafeReplayPayload(currentReplay, {
+        target: "record",
         finishedAt: now.toISOString(),
         finalScore: initialsEntryState.pendingScore,
         initials,
       })
-    : null;
+    : { payload: null, truncated: false };
+  const replayPayload = replayBuild.payload;
 
   const records = loadRecords();
   records.push({
@@ -4356,8 +4416,10 @@ function savePendingRecord(forcedInitials = null) {
   setStatus(
     isGlobalTopScore
       ? "Nuevo record global."
-      : localSaveResult.replayStored
+      : localSaveResult.replayStored && !replayBuild.truncated
         ? "Record guardado."
+        : replayBuild.truncated
+          ? "Record guardado con replay resumida."
         : "Record guardado sin replay local."
   );
   playApplause();
