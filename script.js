@@ -43,6 +43,8 @@ const HOLE_SPEED_OPTIONS = [1, 2, 4, 8, 16, 32];
 const ADVANCED_BET_STAKES = [0, 5, 10, 20, 50];
 const MUSIC_SCALE_MAJOR = [0, 2, 4, 5, 7, 9, 11];
 const MUSIC_SCALE_MINOR = [0, 2, 3, 5, 7, 8, 10];
+const MUSIC_MIN_TRACK_DURATION_MS = 60000;
+const MUSIC_TRACK_GAP_MS = 5000;
 const MUSIC_TRACKS = [
   { name: "Neon Drive", tempo: 104, mode: "minor", rootMidi: 57, progression: [0, 5, 3, 4], melody: [0, 2, 4, 2, 6, 4, 2, 1], bass: [0, null, 0, null, 5, null, 3, null], lead: "square", pad: "triangle" },
   { name: "Sunset Loop", tempo: 96, mode: "major", rootMidi: 60, progression: [0, 4, 5, 3], melody: [0, 2, 4, 5, 4, 2, 1, 0], bass: [0, null, 4, null, 5, null, 3, null], lead: "triangle", pad: "sine" },
@@ -5931,46 +5933,52 @@ function scheduleMusicTone(context, targetGain, { frequency, startAt, duration, 
 function scheduleMusicTrack(context, targetGain, track, startAt) {
   const barDuration = (60 / track.tempo) * 4;
   const stepDuration = barDuration / 8;
-  track.progression.forEach((barDegree, barIndex) => {
-    const barStart = startAt + (barIndex * barDuration);
-    const chordDegrees = [barDegree, barDegree + 2, barDegree + 4];
-    chordDegrees.forEach((degree, chordIndex) => {
-      scheduleMusicTone(context, targetGain, {
-        frequency: midiToFrequency(getScaleMidi(track, degree, chordIndex === 2 ? 1 : 0)),
-        startAt: barStart,
-        duration: barDuration * 0.92,
-        type: track.pad,
-        volume: 0.08,
+  const loopDuration = barDuration * track.progression.length;
+  const repeats = Math.max(1, Math.ceil(MUSIC_MIN_TRACK_DURATION_MS / Math.max(1, loopDuration * 1000)));
+
+  for (let repeatIndex = 0; repeatIndex < repeats; repeatIndex += 1) {
+    const repeatOffset = repeatIndex * loopDuration;
+    track.progression.forEach((barDegree, barIndex) => {
+      const barStart = startAt + repeatOffset + (barIndex * barDuration);
+      const chordDegrees = [barDegree, barDegree + 2, barDegree + 4];
+      chordDegrees.forEach((degree, chordIndex) => {
+        scheduleMusicTone(context, targetGain, {
+          frequency: midiToFrequency(getScaleMidi(track, degree, chordIndex === 2 ? 1 : 0)),
+          startAt: barStart,
+          duration: barDuration * 0.92,
+          type: track.pad,
+          volume: 0.08,
+        });
       });
+
+      for (let step = 0; step < 8; step += 1) {
+        const stepStart = barStart + (step * stepDuration);
+        const melodyDegree = track.melody[step % track.melody.length];
+        if (melodyDegree !== null && melodyDegree !== undefined) {
+          scheduleMusicTone(context, targetGain, {
+            frequency: midiToFrequency(getScaleMidi(track, barDegree + melodyDegree, 1)),
+            startAt: stepStart,
+            duration: stepDuration * 0.82,
+            type: track.lead,
+            volume: 0.16,
+          });
+        }
+
+        const bassDegree = track.bass[step % track.bass.length];
+        if (bassDegree !== null && bassDegree !== undefined) {
+          scheduleMusicTone(context, targetGain, {
+            frequency: midiToFrequency(getScaleMidi(track, bassDegree, -1)),
+            startAt: stepStart,
+            duration: stepDuration * 0.9,
+            type: "triangle",
+            volume: 0.22,
+            slideTo: midiToFrequency(getScaleMidi(track, bassDegree, -1)) * 0.985,
+          });
+        }
+      }
     });
-
-    for (let step = 0; step < 8; step += 1) {
-      const stepStart = barStart + (step * stepDuration);
-      const melodyDegree = track.melody[step % track.melody.length];
-      if (melodyDegree !== null && melodyDegree !== undefined) {
-        scheduleMusicTone(context, targetGain, {
-          frequency: midiToFrequency(getScaleMidi(track, barDegree + melodyDegree, 1)),
-          startAt: stepStart,
-          duration: stepDuration * 0.82,
-          type: track.lead,
-          volume: 0.16,
-        });
-      }
-
-      const bassDegree = track.bass[step % track.bass.length];
-      if (bassDegree !== null && bassDegree !== undefined) {
-        scheduleMusicTone(context, targetGain, {
-          frequency: midiToFrequency(getScaleMidi(track, bassDegree, -1)),
-          startAt: stepStart,
-          duration: stepDuration * 0.9,
-          type: "triangle",
-          volume: 0.22,
-          slideTo: midiToFrequency(getScaleMidi(track, bassDegree, -1)) * 0.985,
-        });
-      }
-    }
-  });
-  return barDuration * track.progression.length;
+  }
+  return Math.max(MUSIC_MIN_TRACK_DURATION_MS, Math.round(loopDuration * repeats * 1000)) / 1000;
 }
 
 function stopMusicPlayback() {
@@ -6015,7 +6023,7 @@ function startMusicPlayback(options = {}) {
     activeMusicChannelGain = channelGain;
     const duration = scheduleMusicTrack(context, channelGain, track, startAt);
     musicTrackStartedAt = Date.now();
-    musicTrackDurationMs = Math.round(duration * 1000);
+    musicTrackDurationMs = Math.round((duration * 1000) + MUSIC_TRACK_GAP_MS);
     startMusicTimer();
     const nextIndex = (currentMusicTrackIndex + 1) % MUSIC_TRACKS.length;
     musicLoopTimeout = window.setTimeout(() => {
@@ -6023,7 +6031,7 @@ function startMusicPlayback(options = {}) {
       currentMusicTrackIndex = nextIndex;
       localStorage.setItem(MUSIC_TRACK_INDEX_KEY, String(currentMusicTrackIndex));
       startMusicPlayback();
-    }, Math.max(1200, Math.round(duration * 1000)));
+    }, Math.max(1200, Math.round((duration * 1000) + MUSIC_TRACK_GAP_MS)));
   }).catch(() => {});
 }
 
