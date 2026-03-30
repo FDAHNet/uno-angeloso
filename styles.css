@@ -2928,6 +2928,44 @@ button:hover {
   box-shadow: none;
 }
 
+.replay-play-icon-button {
+  display: grid;
+  place-items: center;
+}
+
+.replay-play-icon,
+.replay-pause-icon {
+  display: none;
+}
+
+.replay-play-icon-button:not(.is-playing) .replay-play-icon {
+  display: block;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-left: 13px solid currentColor;
+  margin-left: 3px;
+}
+
+.replay-play-icon-button.is-playing .replay-pause-icon {
+  display: grid;
+  grid-template-columns: repeat(2, 5px);
+  gap: 4px;
+  align-items: stretch;
+  height: 16px;
+}
+
+.replay-play-icon-button.is-playing .replay-pause-icon::before,
+.replay-play-icon-button.is-playing .replay-pause-icon::after {
+  content: "";
+  display: block;
+  width: 5px;
+  height: 16px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
 .replay-progress {
   text-align: right;
   color: var(--muted);

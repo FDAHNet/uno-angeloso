@@ -5069,14 +5069,16 @@ function stopReplayMode() {
 function updateReplayControls() {
   if (!replaySession) {
     replayProgressElement.textContent = "";
-    replayPlayButton.textContent = "Play";
+    replayPlayButton.classList.remove("is-playing");
+    replayPlayButton.setAttribute("aria-label", "Reproducir");
     replayModeLabelElement.textContent = "STOP";
     return;
   }
 
   const totalTurns = replaySession.replay.turns.length;
   replayProgressElement.textContent = `Paso ${replaySession.index} de ${totalTurns} | Puntuacion ${gameState.score}`;
-  replayPlayButton.textContent = replaySession.playing ? "Pausa" : "Play";
+  replayPlayButton.classList.toggle("is-playing", replaySession.playing);
+  replayPlayButton.setAttribute("aria-label", replaySession.playing ? "Pausar" : "Reproducir");
   replayModeLabelElement.textContent = replaySession.playing ? "PLAY" : (replaySession.index >= totalTurns ? "END" : "PAUSE");
   replayFirstButton.disabled = replaySession.index === 0;
   replayPrevButton.disabled = replaySession.index === 0;
