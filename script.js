@@ -2279,101 +2279,113 @@ function renderStatsPanel() {
   const totalMoves = moveSequence;
   const averageScore = totalMoves ? (gameState.score / totalMoves).toFixed(1) : "0.0";
   const mode = `${boardSize}x${boardSize}`;
-  const achievementCount = journalEntries.length;
-  const biggestAchievement = achievementCount ? Math.max(...journalEntries.map((entry) => entry.value)) : 0;
+  const achievementValues = journalEntries.map((entry) => Number(entry.value) || 0);
+  const biggestAchievement = achievementValues.length ? Math.max(...achievementValues) : 0;
   const reasonLabel = gameState.over ? (lastGameOverReason || "BY MACHINE") : "EN JUEGO";
   const directionStats = getMoveDirectionStats();
-  const mvpLabel = highestTile ? `Ficha ${highestTile}` : "Sin MVP";
-  const keyMoment = decisiveMomentLabel || (highestTile >= 2048 ? "Se alcanzo 2048" : bestFusionStreak >= 4 ? "Remontada con racha" : "Partida estable");
   const decisiveMinute = formatElapsedTime(decisiveMomentMs || getElapsedMs());
+  const milestoneTargets = [
+    { label: "128", min: 128 },
+    { label: "256", min: 256 },
+    { label: "512", min: 512 },
+    { label: "1024", min: 1024 },
+    { label: "2048", min: 2048 },
+    { label: "4096", min: 4096 },
+    { label: "8192", min: 8192 },
+    { label: "16384", min: 16384 },
+    { label: "32768", min: 32768 },
+    { label: "65535", min: 65535 },
+    { label: "Mas de 131.070", min: 131071 },
+  ];
+  const milestoneCards = milestoneTargets
+    .map(({ label, min }) => {
+      const count = achievementValues.filter((value) => value >= min).length;
+      return `
+        <div class="stats-milestone-card">
+          <span class="stats-milestone-label">${label}</span>
+          <span class="stats-milestone-value">${count}</span>
+        </div>
+      `;
+    })
+    .join("");
   const directionRows = Object.entries(directionStats)
     .map(([direction, count]) => `
-      <div class="stats-list-row">
-        <span>${getDirectionLabel(direction)}</span>
-        <span>${count}</span>
-      </div>
-    `)
+        <div class="stats-list-row">
+          <span>${getDirectionLabel(direction)}</span>
+          <span>${count}</span>
+        </div>
+      `)
     .join("");
 
   statsPanelContentElement.innerHTML = `
-    <div class="stats-grid">
-      <div class="stats-card">
-        <span class="stats-card-label">Modo</span>
-        <span class="stats-card-value">${mode}</span>
-      </div>
-      <div class="stats-card">
-        <span class="stats-card-label">Final</span>
-        <span class="stats-card-value">${reasonLabel}</span>
-      </div>
-      <div class="stats-card">
-        <span class="stats-card-label">Puntuacion</span>
-        <span class="stats-card-value">${gameState.score}</span>
-      </div>
-      <div class="stats-card">
-        <span class="stats-card-label">Record local</span>
-        <span class="stats-card-value">${gameState.bestScore}</span>
-      </div>
-      <div class="stats-card">
-        <span class="stats-card-label">Tiempo</span>
-        <span class="stats-card-value">${elapsedText}</span>
-      </div>
-      <div class="stats-card">
-        <span class="stats-card-label">Jugadas</span>
-        <span class="stats-card-value">${totalMoves}</span>
-      </div>
-      <div class="stats-card">
-        <span class="stats-card-label">Ficha maxima</span>
-        <span class="stats-card-value">${highestTile}</span>
-      </div>
-      <div class="stats-card">
-        <span class="stats-card-label">Puntos por jugada</span>
-        <span class="stats-card-value">${averageScore}</span>
-      </div>
-      <div class="stats-card">
-        <span class="stats-card-label">Momento</span>
-        <span class="stats-card-value">${momentumLabel}</span>
-      </div>
-      <div class="stats-card">
-        <span class="stats-card-label">Mejor racha</span>
-        <span class="stats-card-value">x${bestFusionStreak}</span>
-      </div>
-    </div>
-    <div class="stats-section">
-      <h4>Resumen rapido</h4>
-      <div class="stats-list">
-        <div class="stats-list-row">
-          <span>Logros de 128 o mas</span>
-          <span>${achievementCount}</span>
+      <div class="stats-grid">
+        <div class="stats-card">
+          <span class="stats-card-label">Modo</span>
+          <span class="stats-card-value">${mode}</span>
         </div>
-        <div class="stats-list-row">
-          <span>Mayor logro anotado</span>
-          <span>${biggestAchievement || "-"}</span>
+        <div class="stats-card">
+          <span class="stats-card-label">Final</span>
+          <span class="stats-card-value">${reasonLabel}</span>
         </div>
-        <div class="stats-list-row">
-          <span>Movimientos en replay</span>
-          <span>${currentReplay?.turns?.length || 0}</span>
+        <div class="stats-card">
+          <span class="stats-card-label">Puntuacion</span>
+          <span class="stats-card-value">${gameState.score}</span>
         </div>
-        <div class="stats-list-row">
-          <span>MVP del partido</span>
-          <span>${mvpLabel}</span>
+        <div class="stats-card">
+          <span class="stats-card-label">Record local</span>
+          <span class="stats-card-value">${gameState.bestScore}</span>
         </div>
-        <div class="stats-list-row">
-          <span>Momento clave</span>
-          <span>${keyMoment}</span>
+        <div class="stats-card">
+          <span class="stats-card-label">Tiempo</span>
+          <span class="stats-card-value">${elapsedText}</span>
         </div>
-        <div class="stats-list-row">
-          <span>Minuto decisivo</span>
-          <span>${decisiveMinute}</span>
+        <div class="stats-card">
+          <span class="stats-card-label">Jugadas</span>
+          <span class="stats-card-value">${totalMoves}</span>
+        </div>
+        <div class="stats-card">
+          <span class="stats-card-label">Ficha maxima</span>
+          <span class="stats-card-value">${highestTile}</span>
+        </div>
+        <div class="stats-card">
+          <span class="stats-card-label">Puntos por jugada</span>
+          <span class="stats-card-value">${averageScore}</span>
+        </div>
+        <div class="stats-card">
+          <span class="stats-card-label">Momento</span>
+          <span class="stats-card-value">${momentumLabel}</span>
+        </div>
+        <div class="stats-card">
+          <span class="stats-card-label">Mejor racha</span>
+          <span class="stats-card-value">x${bestFusionStreak}</span>
         </div>
       </div>
-    </div>
-    <div class="stats-section">
-      <h4>Distribucion de movimientos</h4>
-      <div class="stats-list">
-        ${directionRows}
+      <div class="stats-section">
+        <h4>Resumen rapido</h4>
+        <div class="stats-list">
+          <div class="stats-list-row">
+            <span>Mayor logro anotado</span>
+            <span>${biggestAchievement || "-"}</span>
+          </div>
+          <div class="stats-list-row">
+            <span>Minuto decisivo</span>
+            <span>${decisiveMinute}</span>
+          </div>
+        </div>
       </div>
-    </div>
-  `;
+      <div class="stats-section">
+        <h4>Logros por ficha</h4>
+        <div class="stats-milestones-grid">
+          ${milestoneCards}
+        </div>
+      </div>
+      <div class="stats-section">
+        <h4>Distribucion de movimientos</h4>
+        <div class="stats-list">
+          ${directionRows}
+        </div>
+      </div>
+    `;
 }
 
 function stopGameTimer() {

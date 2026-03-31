@@ -1810,6 +1810,35 @@ button:hover {
   color: var(--accent);
 }
 
+.stats-milestones-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stats-milestone-card {
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.09);
+  background: rgba(255,255,255,0.04);
+  display: grid;
+  gap: 8px;
+}
+
+.stats-milestone-label {
+  color: var(--muted);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.stats-milestone-value {
+  color: var(--accent);
+  font-family: "Press Start 2P", "Space Grotesk", sans-serif;
+  font-size: clamp(0.62rem, 0.9vw, 0.76rem);
+  line-height: 1.45;
+}
+
 .stats-section {
   padding: 14px 16px;
   border-radius: 18px;
@@ -3950,6 +3979,10 @@ button:hover {
 
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  .stats-milestones-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .initials-actions button,
