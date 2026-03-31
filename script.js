@@ -1450,12 +1450,12 @@ function setGameOverOverlay(visible, reason = "") {
   updateStatsButton();
 }
 
+function canShowLiveStats() {
+  return !demoMode && !replayMode && attractDismissed && !awaitingManualStart;
+}
+
 function setStatsPanelOpen(nextOpen) {
-  const boardFrame = getBoardFrameElement();
-  statsPanelOpen = Boolean(nextOpen && gameState.over && !replayMode);
-  if (boardFrame) {
-    boardFrame.classList.toggle("stats-open", statsPanelOpen);
-  }
+  statsPanelOpen = Boolean(nextOpen && canShowLiveStats());
   statsPanelElement?.classList.toggle("hidden", !statsPanelOpen);
   if (statsPanelOpen) {
     renderStatsPanel();
@@ -1464,7 +1464,7 @@ function setStatsPanelOpen(nextOpen) {
 
 function updateStatsButton() {
   if (!showStatsButton) return;
-  const visible = Boolean(gameState.over && !replayMode && !demoMode);
+  const visible = Boolean(canShowLiveStats());
   showStatsButton.classList.toggle("hidden", !visible);
 }
 
@@ -2255,7 +2255,7 @@ function renderStatsPanel() {
   const mode = `${boardSize}x${boardSize}`;
   const achievementCount = journalEntries.length;
   const biggestAchievement = achievementCount ? Math.max(...journalEntries.map((entry) => entry.value)) : 0;
-  const reasonLabel = lastGameOverReason || "BY MACHINE";
+  const reasonLabel = gameState.over ? (lastGameOverReason || "BY MACHINE") : "EN JUEGO";
   const directionStats = getMoveDirectionStats();
   const mvpLabel = highestTile ? `Ficha ${highestTile}` : "Sin MVP";
   const keyMoment = decisiveMomentLabel || (highestTile >= 2048 ? "Se alcanzo 2048" : bestFusionStreak >= 4 ? "Remontada con racha" : "Partida estable");
@@ -3851,6 +3851,9 @@ function render() {
   applyScoreSizing(scoreElement, gameState.score);
   applyScoreSizing(bestScoreElement, gameState.bestScore);
   updateStatsButton();
+  if (statsPanelOpen) {
+    renderStatsPanel();
+  }
   const now = performance.now();
   const activeIds = new Set();
 
@@ -4382,6 +4385,12 @@ function renderJournal() {
 
     const time = document.createElement("time");
     time.textContent = entry.timeText;
+    if (entry.elapsedText) {
+      const elapsed = document.createElement("span");
+      elapsed.className = "journal-entry-elapsed";
+      elapsed.textContent = `(${entry.elapsedText})`;
+      time.append(" ", elapsed);
+    }
 
     const badge = document.createElement("span");
     badge.className = "journal-entry-badge";
@@ -4413,6 +4422,7 @@ function addJournalEntry(value, row, col) {
       minute: "2-digit",
       second: "2-digit",
     }),
+    elapsedText: formatElapsedTime(getElapsedMs()),
   };
 
   journalEntries.unshift(entry);
@@ -6771,8 +6781,8 @@ saveGameButton.addEventListener("click", () => {
   setSaveSlotsPanelOpen(!saveSlotsPanelOpen);
 });
 showStatsButton?.addEventListener("click", () => {
-  if (!gameState.over || replayMode) return;
-  setStatsPanelOpen(true);
+  if (!canShowLiveStats()) return;
+  setStatsPanelOpen(!statsPanelOpen);
 });
 closeStatsButton?.addEventListener("click", () => setStatsPanelOpen(false));
 closeAdminButton?.addEventListener("click", () => {

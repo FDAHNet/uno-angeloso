@@ -190,7 +190,17 @@
           </div>
           <div id="journal-list" class="journal-list"></div>
           <div class="journal-footer">
-            <button id="show-stats-button" type="button" class="secondary-button journal-stats-button hidden">Mostrar Estadisticas de la partida</button>
+            <button id="show-stats-button" type="button" class="journal-stats-link hidden">Estadisticas en Tiempo Real</button>
+          </div>
+        </aside>
+        <aside id="stats-panel" class="stats-panel hidden" aria-labelledby="stats-title">
+          <div class="stats-panel-shell">
+            <button id="close-stats-button" type="button" class="stats-close-button" aria-label="Cerrar estadisticas">X</button>
+            <div class="stats-panel-head">
+              <p class="initials-eyebrow">Tiempo real</p>
+              <h3 id="stats-title">Estadisticas de la partida</h3>
+            </div>
+            <div id="stats-panel-content" class="stats-panel-content"></div>
           </div>
         </aside>
         <div class="board-shell">
@@ -220,17 +230,6 @@
                 <span id="game-over-reason" class="game-over-reason"></span>
               </div>
             </div>
-            <section id="stats-panel" class="stats-panel hidden" aria-labelledby="stats-title">
-              <div class="stats-panel-shell">
-                <button id="close-stats-button" type="button" class="stats-close-button" aria-label="Cerrar estadisticas">X</button>
-                <div class="stats-panel-head">
-                  <p class="initials-eyebrow">Resumen</p>
-                  <h3 id="stats-title">Estadisticas de la partida</h3>
-                </div>
-                <div id="stats-panel-content" class="stats-panel-content"></div>
-              </div>
-            </section>
-            <div id="stats-backdrop" class="stats-backdrop" aria-hidden="true"></div>
           </div>
         </div>
         <aside class="side-actions">
