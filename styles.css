@@ -981,15 +981,13 @@ button:hover {
 }
 
 .play-shell {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 22px;
-  margin-top: 18px;
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  margin: 18px auto 0;
 }
 
 .board-panel {
-  flex: 0 0 auto;
   width: fit-content;
   max-width: 100%;
   min-width: 0;
@@ -1713,11 +1711,13 @@ button:hover {
 }
 
 .stats-panel {
-  width: clamp(380px, 31vw, 460px);
+  position: absolute;
+  right: calc(100% + 22px);
+  top: 0;
+  width: clamp(460px, 36vw, 620px);
   min-height: 0;
-  max-height: min(560px, calc(var(--board-size) * 0.72));
+  max-height: min(520px, calc(var(--board-size) * 0.68));
   display: block;
-  flex: 0 0 auto;
 }
 
 .stats-panel.hidden {
@@ -3855,7 +3855,10 @@ button:hover {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .play-shell,
+  .play-shell {
+    width: 100%;
+  }
+
   .board-layout {
     flex-direction: column;
     align-items: center;
@@ -3868,6 +3871,11 @@ button:hover {
     width: 100%;
     min-height: auto;
     max-height: none;
+  }
+
+  .stats-panel {
+    position: static;
+    margin-bottom: 14px;
   }
 
   .side-actions {
