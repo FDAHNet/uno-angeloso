@@ -980,8 +980,17 @@ button:hover {
   box-shadow: 0 12px 24px rgba(164, 22, 26, 0.28);
 }
 
-.board-panel {
+.play-shell {
+  display: flex;
+  align-items: flex-start;
+  gap: 22px;
   margin-top: 18px;
+}
+
+.board-panel {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin-top: 0;
   padding: 24px;
 }
 
@@ -1100,9 +1109,16 @@ button:hover {
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.journal-panel {
+.journal-stack {
   order: 0;
   width: min(280px, 26vw);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.journal-panel {
+  width: 100%;
   min-height: var(--board-size);
   max-height: var(--board-size);
   padding: 16px;
@@ -1201,9 +1217,9 @@ button:hover {
 }
 
 .journal-footer {
-  margin-top: 14px;
   display: flex;
   justify-content: flex-start;
+  padding-left: 6px;
 }
 
 .journal-stats-link {
@@ -1694,10 +1710,9 @@ button:hover {
 }
 
 .stats-panel {
-  order: 1;
   width: min(320px, 29vw);
-  min-height: var(--board-size);
-  max-height: var(--board-size);
+  min-height: calc(var(--board-size) + 48px);
+  max-height: calc(var(--board-size) + 48px);
   display: block;
   flex: 0 0 auto;
 }
@@ -3836,11 +3851,13 @@ button:hover {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
+  .play-shell,
   .board-layout {
     flex-direction: column;
     align-items: center;
   }
 
+  .journal-stack,
   .journal-panel,
   .stats-panel,
   .side-actions {

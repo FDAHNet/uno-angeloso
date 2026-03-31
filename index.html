@@ -174,35 +174,38 @@
       </div>
     </section>
 
-    <section class="board-panel">
+    <div class="play-shell">
+      <aside id="stats-panel" class="stats-panel hidden" aria-labelledby="stats-title">
+        <div class="stats-panel-shell">
+          <button id="close-stats-button" type="button" class="stats-close-button" aria-label="Cerrar estadisticas">X</button>
+          <div class="stats-panel-head">
+            <p class="initials-eyebrow">Tiempo real</p>
+            <h3 id="stats-title">Estadisticas de la partida</h3>
+          </div>
+          <div id="stats-panel-content" class="stats-panel-content"></div>
+        </div>
+      </aside>
+      <section class="board-panel">
       <div id="starfield" class="starfield" aria-hidden="true"></div>
       <div class="board-layout">
-        <aside class="journal-panel" aria-labelledby="journal-title">
-          <div class="journal-header">
-            <div class="journal-title-row">
-              <h3 id="journal-title" data-default-title="Bitacora">Bitacora</h3>
-              <div class="journal-timer-block">
-                <span id="game-timer" class="game-timer" aria-live="polite">00:00:00</span>
-                <span id="game-moves" class="game-moves" aria-live="polite">0 jugadas</span>
+        <div class="journal-stack">
+          <aside class="journal-panel" aria-labelledby="journal-title">
+            <div class="journal-header">
+              <div class="journal-title-row">
+                <h3 id="journal-title" data-default-title="Bitacora">Bitacora</h3>
+                <div class="journal-timer-block">
+                  <span id="game-timer" class="game-timer" aria-live="polite">00:00:00</span>
+                  <span id="game-moves" class="game-moves" aria-live="polite">0 jugadas</span>
+                </div>
               </div>
+              <p id="journal-subtitle"></p>
             </div>
-            <p id="journal-subtitle"></p>
-          </div>
-          <div id="journal-list" class="journal-list"></div>
+            <div id="journal-list" class="journal-list"></div>
+          </aside>
           <div class="journal-footer">
             <button id="show-stats-button" type="button" class="journal-stats-link hidden">Estadisticas en Tiempo Real</button>
           </div>
-        </aside>
-        <aside id="stats-panel" class="stats-panel hidden" aria-labelledby="stats-title">
-          <div class="stats-panel-shell">
-            <button id="close-stats-button" type="button" class="stats-close-button" aria-label="Cerrar estadisticas">X</button>
-            <div class="stats-panel-head">
-              <p class="initials-eyebrow">Tiempo real</p>
-              <h3 id="stats-title">Estadisticas de la partida</h3>
-            </div>
-            <div id="stats-panel-content" class="stats-panel-content"></div>
-          </div>
-        </aside>
+        </div>
         <div class="board-shell">
           <div id="board-coords-top" class="board-coords-row board-coords-top" aria-hidden="true"></div>
           <div id="board-coords-left" class="board-coords-col board-coords-left" aria-hidden="true"></div>
@@ -342,7 +345,9 @@
           <p class="initials-help">Mueve el cursor por el alfabeto con las flechas y marca la letra como en una recreativa clasica.</p>
         </div>
       </section>
-      <section id="records-panel" class="records-panel records-panel-collapsed" aria-labelledby="records-title">
+        </section>
+    </div>
+    <section id="records-panel" class="records-panel records-panel-collapsed" aria-labelledby="records-title">
         <div class="records-header">
           <h2 id="records-title">Records</h2>
           <p>Clasificacion global por modalidad.</p>
