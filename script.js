@@ -654,7 +654,9 @@ let lastTimerMilestone = 0;
 let lastAutosaveMilestone = 0;
 let gamePaused = false;
 let pausedElapsedMs = 0;
+let realPausedElapsedMs = 0;
 let gameTimerScale = 1;
+let realGameTimerStartedAt = 0;
 let moveHistory = [];
 let moveSequence = 0;
 let currentFusionStreak = 0;
@@ -2140,14 +2142,21 @@ function syncGameTimerScale(nextScale = getCurrentGameTimeScale()) {
   const now = Date.now();
   if (!gamePaused && gameTimerStartedAt) {
     pausedElapsedMs += Math.max(0, now - gameTimerStartedAt) * gameTimerScale;
+    realPausedElapsedMs += Math.max(0, now - realGameTimerStartedAt);
   }
   gameTimerStartedAt = now;
+  realGameTimerStartedAt = now;
   gameTimerScale = nextScale;
 }
 
 function getElapsedMs() {
   if (gamePaused) return pausedElapsedMs;
   return pausedElapsedMs + (Math.max(0, Date.now() - gameTimerStartedAt) * gameTimerScale);
+}
+
+function getRealElapsedMs() {
+  if (gamePaused) return realPausedElapsedMs;
+  return realPausedElapsedMs + Math.max(0, Date.now() - realGameTimerStartedAt);
 }
 
 function renderGameTimer() {
@@ -2274,7 +2283,7 @@ async function updateAdminPanelPin() {
 function renderStatsPanel() {
   if (!statsPanelContentElement) return;
 
-  const elapsedText = formatElapsedTime(getElapsedMs());
+  const elapsedText = formatElapsedTime(getRealElapsedMs());
   const highestTile = getHighestTileValue();
   const totalMoves = moveSequence;
   const averageScore = totalMoves ? (gameState.score / totalMoves).toFixed(1) : "0.0";
@@ -2342,20 +2351,8 @@ function renderStatsPanel() {
           <span class="stats-card-value">${totalMoves}</span>
         </div>
         <div class="stats-card">
-          <span class="stats-card-label">Ficha maxima</span>
-          <span class="stats-card-value">${highestTile}</span>
-        </div>
-        <div class="stats-card">
           <span class="stats-card-label">Puntos por jugada</span>
           <span class="stats-card-value">${averageScore}</span>
-        </div>
-        <div class="stats-card">
-          <span class="stats-card-label">Momento</span>
-          <span class="stats-card-value">${momentumLabel}</span>
-        </div>
-        <div class="stats-card">
-          <span class="stats-card-label">Mejor racha</span>
-          <span class="stats-card-value">x${bestFusionStreak}</span>
         </div>
       </div>
       <div class="stats-section">
@@ -2383,9 +2380,11 @@ function stopGameTimer() {
 function startGameTimer() {
   stopGameTimer();
   gameTimerStartedAt = Date.now();
+  realGameTimerStartedAt = gameTimerStartedAt;
   gameTimerScale = getCurrentGameTimeScale();
   gamePaused = false;
   pausedElapsedMs = 0;
+  realPausedElapsedMs = 0;
   lastTimerMilestone = 0;
   lastAutosaveMilestone = 0;
   renderGameTimer();
@@ -2512,6 +2511,7 @@ function persistSessionSnapshot() {
     journalEntries: cloneJournalEntries(journalEntries),
     moveSequence,
     gameTimerElapsedMs: getElapsedMs(),
+    realGameTimerElapsedMs: getRealElapsedMs(),
     globalRecordFanfarePlayed,
     recordLeaderActive: bestScoreCardElement?.classList.contains("record-leader") || false,
     advancedMode,
@@ -2596,8 +2596,10 @@ function setGamePaused(nextPaused, options = {}) {
 
   if (nextPaused) {
     pausedElapsedMs = getElapsedMs();
+    realPausedElapsedMs = getRealElapsedMs();
     gamePaused = true;
     gameTimerStartedAt = Date.now();
+    realGameTimerStartedAt = gameTimerStartedAt;
     stopGameTimer();
     setPauseOverlay(true);
     setStatus(statusMessage);
@@ -2608,6 +2610,7 @@ function setGamePaused(nextPaused, options = {}) {
 
   gamePaused = false;
   gameTimerStartedAt = Date.now();
+  realGameTimerStartedAt = gameTimerStartedAt;
   gameTimerScale = getCurrentGameTimeScale();
   setPauseOverlay(false);
   updatePauseButton();
@@ -2698,6 +2701,7 @@ function restorePlayableSnapshot(snapshot) {
   moveHistory = [];
   globalRecordFanfarePlayed = Boolean(snapshot.globalRecordFanfarePlayed);
   pausedElapsedMs = Number(snapshot.gameTimerElapsedMs || 0);
+  realPausedElapsedMs = Number(snapshot.realGameTimerElapsedMs || snapshot.gameTimerElapsedMs || 0);
   gamePaused = true;
   gameSessionId += 1;
 
@@ -3070,6 +3074,7 @@ function restoreSessionSnapshot() {
     moveHistory = [];
     globalRecordFanfarePlayed = Boolean(snapshot.globalRecordFanfarePlayed);
     pausedElapsedMs = Number(snapshot.gameTimerElapsedMs || 0);
+    realPausedElapsedMs = Number(snapshot.realGameTimerElapsedMs || snapshot.gameTimerElapsedMs || 0);
     gamePaused = true;
     gameSessionId += 1;
 
@@ -4523,6 +4528,7 @@ function restoreHistoryEntry(entryId) {
   nextTileId = entry.nextTileId;
   globalRecordFanfarePlayed = entry.globalRecordFanfarePlayed;
   gameTimerStartedAt = Date.now() - entry.elapsedMs;
+  realGameTimerStartedAt = gameTimerStartedAt;
   moveSequence = entry.step;
   moveHistory = moveHistory.slice(0, targetIndex + 1);
 
