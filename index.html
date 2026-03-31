@@ -506,6 +506,16 @@
         </div>
         <div id="admin-panel-status" class="admin-panel-status">Pulsa C T R L durante la partida para abrir este panel.</div>
         <div id="admin-summary-grid" class="admin-summary-grid"></div>
+        <section class="admin-card admin-admin-access-card">
+          <div class="admin-card-head">
+            <h3>Seguridad del Panel</h3>
+          </div>
+          <div class="admin-inline-tools">
+            <input id="admin-new-pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="Nuevo PIN panel">
+            <button id="admin-save-pin-button" type="button">Guardar PIN</button>
+          </div>
+          <p class="admin-inline-help">Cambia el PIN del panel de control. Se guarda en el worker como hash, no en claro.</p>
+        </section>
         <div class="admin-sections">
           <section class="admin-card admin-collapsible-card" data-admin-section="users">
             <div class="admin-card-head">
@@ -608,6 +618,10 @@
               <input id="admin-user-credit-delta" type="number" min="1" step="1" value="10" aria-label="Cantidad de creditos">
               <button id="admin-user-add-credits-button" type="button">Sumar creditos</button>
               <button id="admin-user-subtract-credits-button" type="button" class="danger-button">Restar creditos</button>
+            </div>
+            <div class="admin-inline-tools admin-user-pin-tools">
+              <input id="admin-user-new-pin" type="password" inputmode="numeric" maxlength="4" placeholder="Nuevo PIN jugador">
+              <button id="admin-user-set-pin-button" type="button" class="secondary-button">Cambiar PIN</button>
             </div>
             <div id="admin-user-status" class="admin-panel-status">Pulsa sobre un usuario para ver su ficha completa.</div>
             <div class="admin-table-wrap">

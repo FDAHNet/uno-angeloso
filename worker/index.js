@@ -3,6 +3,9 @@ const GITHUB_REPO = '2048';
 const GITHUB_LABEL = 'record';
 const PLAYER_LABEL = 'player-account';
 const BET_CONFIG_LABEL = 'bet-config';
+const ADMIN_CONFIG_LABEL = 'admin-config';
+const ADMIN_CONFIG_R2_KEY = '__config/admin-pin.json';
+const PLAYER_SECRET_PREFIX = '__players/';
 const DEFAULT_ALLOWED_ORIGIN = 'https://fdahnet.github.io';
 const DEFAULT_ALLOWED_REFERER_PREFIX = 'https://fdahnet.github.io';
 const ALLOWED_MODES = new Set(['4x4', '5x5', '6x6', '8x8', '16x16']);
@@ -19,6 +22,7 @@ const MAX_REPLAY_TURNS = 600_000;
 const DEFAULT_PLAYER_CREDITS = 100;
 const MAX_CREDITS = 1_000_000;
 const MAX_ADMIN_PAGES = 20;
+const PLAYER_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const ADMIN_TOKEN_TTL_MS = 8 * 60 * 60 * 1000;
 const DEFAULT_ADMIN_PANEL_PIN_HASH = 'b876239a7a07cb250d3047971464750ff74ee4ac4e9d3298c067290571af5858';
 const ALLOWED_BET_RULES = new Set(['reasonUser', 'highestTileGte', 'durationMinutesGte', 'scoreGte', 'movesGte', 'holeUsed']);
@@ -123,6 +127,8 @@ export default {
       }
       if (url.pathname === '/admin/player') return await handleAdminPlayer(payload, env, corsHeaders);
       if (url.pathname === '/admin/player/credits') return await handleAdminPlayerCredits(payload, env, corsHeaders);
+      if (url.pathname === '/admin/player/pin') return await handleAdminPlayerPin(payload, env, corsHeaders);
+      if (url.pathname === '/admin/pin/save') return await handleAdminPinSave(payload, env, corsHeaders);
       if (url.pathname === '/admin/bets/save') return await handleAdminBetsSave(payload, env, corsHeaders);
       if (url.pathname === '/admin/overview') return await handleAdminOverview(env, corsHeaders);
       if (url.pathname === '/replay/upload') return await handleReplayUpload(payload, env, corsHeaders);
@@ -200,8 +206,97 @@ function getCorsHeaders(origin, allowedOrigin) {
   };
 }
 
-function getAdminPinHash(env) {
-  return String(env.ADMIN_PANEL_PIN_HASH || DEFAULT_ADMIN_PANEL_PIN_HASH).trim().toLowerCase();
+async function getAdminConfigIssue(env) {
+  const issues = await listIssuesByLabel(env, ADMIN_CONFIG_LABEL, 1);
+  return issues[0] || null;
+}
+
+function buildAdminConfigIssueBody(pinHash) {
+  return [
+    'Admin control panel configuration',
+    '',
+    `AdminPinHash: ${pinHash}`,
+    `UpdatedAt: ${new Date().toISOString()}`,
+  ].join('\n');
+}
+
+function parseAdminConfigIssue(issue) {
+  const body = issue?.body || '';
+  const pinHash = body.match(/AdminPinHash:\s*([a-f0-9]{64})/i)?.[1]?.toLowerCase();
+  return pinHash ? { pinHash } : null;
+}
+
+function getPlayerSecretKey(alias) {
+  return `${PLAYER_SECRET_PREFIX}${String(alias || '').toUpperCase()}.json`;
+}
+
+async function readBucketJson(env, key) {
+  if (!env.REPLAY_BUCKET) return null;
+  const object = await env.REPLAY_BUCKET.get(key);
+  if (!object) return null;
+  try {
+    return await object.json();
+  } catch {
+    return null;
+  }
+}
+
+async function writeBucketJson(env, key, value) {
+  if (!env.REPLAY_BUCKET) return false;
+  await env.REPLAY_BUCKET.put(key, JSON.stringify(value), {
+    httpMetadata: { contentType: 'application/json; charset=utf-8' },
+  });
+  return true;
+}
+
+async function getPlayerSecret(env, alias, fallbackPinHash = '') {
+  const secret = await readBucketJson(env, getPlayerSecretKey(alias));
+  const pinHash = String(secret?.pinHash || fallbackPinHash || '').trim().toLowerCase();
+  return /^[a-f0-9]{64}$/i.test(pinHash) ? { pinHash } : null;
+}
+
+async function savePlayerSecret(env, alias, pinHash) {
+  const normalizedPinHash = String(pinHash || '').trim().toLowerCase();
+  if (!/^[a-f0-9]{64}$/i.test(normalizedPinHash)) return false;
+  return writeBucketJson(env, getPlayerSecretKey(alias), {
+    alias: String(alias || '').toUpperCase(),
+    pinHash: normalizedPinHash,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+
+async function attachPlayerSecret(env, player) {
+  if (!player) return null;
+  const secret = await getPlayerSecret(env, player.alias, player.pinHash);
+  return {
+    ...player,
+    pinHash: secret?.pinHash || '',
+  };
+}
+
+async function getAdminPinHash(env) {
+  const bucketConfig = await readBucketJson(env, ADMIN_CONFIG_R2_KEY);
+  const bucketPinHash = String(bucketConfig?.pinHash || '').trim().toLowerCase();
+  if (/^[a-f0-9]{64}$/i.test(bucketPinHash)) return bucketPinHash;
+  const issue = await getAdminConfigIssue(env);
+  const config = issue ? parseAdminConfigIssue(issue) : null;
+  return String(config?.pinHash || env.ADMIN_PANEL_PIN_HASH || DEFAULT_ADMIN_PANEL_PIN_HASH).trim().toLowerCase();
+}
+
+async function saveAdminPinHash(env, pinHash) {
+  const normalizedPinHash = String(pinHash || '').trim().toLowerCase();
+  if (await writeBucketJson(env, ADMIN_CONFIG_R2_KEY, { pinHash: normalizedPinHash, updatedAt: new Date().toISOString() })) {
+    return true;
+  }
+  const issue = await getAdminConfigIssue(env);
+  const body = buildAdminConfigIssueBody(normalizedPinHash);
+  if (issue) {
+    await updateIssue(env, issue.number, { body });
+    return issue.number;
+  }
+  const created = await createIssue(env, '[Admin] Panel config', body, [ADMIN_CONFIG_LABEL]);
+  return created.number;
 }
 
 async function sha256Hex(value) {
@@ -210,15 +305,40 @@ async function sha256Hex(value) {
 }
 
 async function buildAdminToken(env) {
-  const secret = getAdminPinHash(env);
+  const secret = await getAdminPinHash(env);
   const expiresAt = Date.now() + ADMIN_TOKEN_TTL_MS;
   const payload = String(expiresAt);
   const signature = await sha256Hex(`${payload}.${secret}`);
   return `${payload}.${signature}`;
 }
 
+async function buildPlayerToken(alias, pinHash) {
+  const expiresAt = Date.now() + PLAYER_TOKEN_TTL_MS;
+  const aliasValue = String(alias || '').toUpperCase();
+  const payload = `${aliasValue}.${expiresAt}`;
+  const signature = await sha256Hex(`${payload}.${pinHash}`);
+  return `${payload}.${signature}`;
+}
+
+async function isValidPlayerToken(token, alias, pinHash) {
+  const parts = String(token || '').split('.');
+  if (parts.length !== 3) return false;
+  const [tokenAlias, expiresAtRaw, signature] = parts;
+  const expiresAt = Number(expiresAtRaw);
+  if (String(tokenAlias).toUpperCase() !== String(alias || '').toUpperCase()) return false;
+  if (!Number.isFinite(expiresAt) || Date.now() > expiresAt) return false;
+  const expectedSignature = await sha256Hex(`${String(alias || '').toUpperCase()}.${expiresAtRaw}.${pinHash}`);
+  return signature === expectedSignature;
+}
+
+async function isAuthorizedPlayer(payload, player) {
+  const pinHash = String(payload?.pinHash || '').trim().toLowerCase();
+  if (/^[a-f0-9]{64}$/i.test(pinHash) && player?.pinHash?.toLowerCase() === pinHash) return true;
+  return isValidPlayerToken(payload?.playerToken, player?.alias, player?.pinHash);
+}
+
 async function requireAdminAuth(payload, env) {
-  const secret = getAdminPinHash(env);
+  const secret = await getAdminPinHash(env);
   if (!/^[a-f0-9]{64}$/i.test(secret)) return 'Admin auth is not configured';
   const token = String(payload?.adminToken || '');
   if (!token) return 'Admin auth required';
@@ -233,7 +353,7 @@ async function requireAdminAuth(payload, env) {
 
 async function handleAdminAuth(payload, env, corsHeaders) {
   const pinHash = String(payload?.pinHash || '').trim().toLowerCase();
-  const expectedHash = getAdminPinHash(env);
+  const expectedHash = await getAdminPinHash(env);
   if (!/^[a-f0-9]{64}$/i.test(expectedHash)) {
     return json({ error: 'Admin auth is not configured' }, 503, corsHeaders);
   }
@@ -384,10 +504,18 @@ function validateReplay(replay, mode) {
   return '';
 }
 
+function hasValidPlayerHash(payload) {
+  return /^[a-f0-9]{64}$/i.test(String(payload?.pinHash || '').trim());
+}
+
+function hasValidPlayerToken(payload) {
+  return /^[A-Za-z0-9_.-]{20,220}$/.test(String(payload?.playerToken || '').trim());
+}
+
 function validatePlayerAccessPayload(payload) {
   if (!payload || typeof payload !== 'object') return 'Payload is required';
   if (!/^[A-Za-z0-9_-]{3,16}$/.test(payload.alias || '')) return 'Alias is invalid';
-  if (!/^[a-f0-9]{64}$/i.test(payload.pinHash || '')) return 'PIN hash is invalid';
+  if (!hasValidPlayerHash(payload) && !hasValidPlayerToken(payload)) return 'Credenciales invalidas';
   return '';
 }
 
@@ -466,6 +594,19 @@ function validateAdminPlayerCreditsPayload(payload) {
   return '';
 }
 
+function validateAdminPlayerPinPayload(payload) {
+  const validation = validateAdminPlayerPayload(payload);
+  if (validation) return validation;
+  if (!/^[a-f0-9]{64}$/i.test(String(payload.pinHash || '').trim())) return 'PIN hash is invalid';
+  return '';
+}
+
+function validateAdminPinSavePayload(payload) {
+  if (!payload || typeof payload !== 'object') return 'Payload is required';
+  if (!/^[a-f0-9]{64}$/i.test(String(payload.pinHash || '').trim())) return 'PIN hash is invalid';
+  return '';
+}
+
 function validateBetDefinition(definition) {
   if (!definition || typeof definition !== 'object') return 'Bet definition is invalid';
   if (!/^[a-z0-9-]{3,48}$/i.test(definition.id || '')) return 'Bet id is invalid';
@@ -484,17 +625,44 @@ async function handlePlayerAccess(payload, env, corsHeaders) {
   if (validation) return json({ error: validation }, 400, corsHeaders);
   const alias = String(payload.alias).toUpperCase();
   const issue = await findPlayerIssueByAlias(env, alias);
+  const providedPinHash = String(payload.pinHash || '').trim().toLowerCase();
+
   if (!issue) {
+    if (!hasValidPlayerHash(payload)) {
+      return json({ error: 'Necesitas un PIN valido de 4 cifras para crear la cuenta.' }, 400, corsHeaders);
+    }
     const createdAt = new Date().toISOString();
-    const player = createDefaultPlayerRecord(alias, payload.pinHash, createdAt);
+    const player = createDefaultPlayerRecord(alias, providedPinHash, createdAt);
+    await savePlayerSecret(env, alias, providedPinHash);
     const created = await createIssue(env, `[Player] ${alias}`, buildPlayerIssueBody(player), [PLAYER_LABEL]);
-    return json({ ok: true, created: true, alias, credits: DEFAULT_PLAYER_CREDITS, issueNumber: created.number }, 200, corsHeaders);
+    return json({
+      ok: true,
+      created: true,
+      alias,
+      credits: DEFAULT_PLAYER_CREDITS,
+      issueNumber: created.number,
+      playerToken: await buildPlayerToken(alias, providedPinHash),
+    }, 200, corsHeaders);
   }
-  const parsed = parsePlayerIssue(issue);
-  if (!parsed || parsed.pinHash.toLowerCase() !== payload.pinHash.toLowerCase()) {
-    return json({ error: 'Alias o PIN incorrecto' }, 403, corsHeaders);
+
+  const parsed = await attachPlayerSecret(env, parsePlayerIssue(issue));
+  if (!parsed || !parsed.pinHash) {
+    return json({ error: 'Jugador no valido' }, 404, corsHeaders);
   }
-  return json({ ok: true, created: false, alias: parsed.alias, credits: parsed.credits, issueNumber: issue.number }, 200, corsHeaders);
+
+  if (!(await isAuthorizedPlayer(payload, parsed))) {
+    return json({ error: 'Ese alias ya existe y el PIN no coincide.' }, 403, corsHeaders);
+  }
+
+  await savePlayerSecret(env, parsed.alias, parsed.pinHash);
+  return json({
+    ok: true,
+    created: false,
+    alias: parsed.alias,
+    credits: parsed.credits,
+    issueNumber: issue.number,
+    playerToken: await buildPlayerToken(parsed.alias, parsed.pinHash),
+  }, 200, corsHeaders);
 }
 
 async function handlePlayerCredits(payload, env, corsHeaders) {
@@ -503,14 +671,16 @@ async function handlePlayerCredits(payload, env, corsHeaders) {
   const alias = String(payload.alias).toUpperCase();
   const issue = await findPlayerIssueByAlias(env, alias);
   if (!issue) return json({ error: 'Jugador no encontrado' }, 404, corsHeaders);
-  const parsed = parsePlayerIssue(issue);
-  if (!parsed || parsed.pinHash.toLowerCase() !== payload.pinHash.toLowerCase()) {
-    return json({ error: 'Alias o PIN incorrecto' }, 403, corsHeaders);
+  const parsed = await attachPlayerSecret(env, parsePlayerIssue(issue));
+  if (!parsed || !parsed.pinHash) return json({ error: 'Jugador no valido' }, 404, corsHeaders);
+  if (!(await isAuthorizedPlayer(payload, parsed))) {
+    return json({ error: 'Alias o credenciales incorrectas.' }, 403, corsHeaders);
   }
   const credits = clampInt(payload.credits, 0, MAX_CREDITS);
   const updated = { ...parsed, credits, updatedAt: new Date().toISOString() };
   await updateIssue(env, issue.number, { body: buildPlayerIssueBody(updated) });
-  return json({ ok: true, alias: parsed.alias, credits }, 200, corsHeaders);
+  await savePlayerSecret(env, updated.alias, updated.pinHash);
+  return json({ ok: true, alias: parsed.alias, credits, playerToken: await buildPlayerToken(updated.alias, updated.pinHash) }, 200, corsHeaders);
 }
 
 async function handlePlayerSession(payload, env, corsHeaders) {
@@ -519,9 +689,10 @@ async function handlePlayerSession(payload, env, corsHeaders) {
   const alias = String(payload.alias).toUpperCase();
   const issue = await findPlayerIssueByAlias(env, alias);
   if (!issue) return json({ error: 'Jugador no encontrado' }, 404, corsHeaders);
-  const parsed = parsePlayerIssue(issue);
-  if (!parsed || parsed.pinHash.toLowerCase() !== payload.pinHash.toLowerCase()) {
-    return json({ error: 'Alias o PIN incorrecto' }, 403, corsHeaders);
+  const parsed = await attachPlayerSecret(env, parsePlayerIssue(issue));
+  if (!parsed || !parsed.pinHash) return json({ error: 'Jugador no valido' }, 404, corsHeaders);
+  if (!(await isAuthorizedPlayer(payload, parsed))) {
+    return json({ error: 'Alias o credenciales incorrectas.' }, 403, corsHeaders);
   }
 
   const now = new Date().toISOString();
@@ -551,6 +722,7 @@ async function handlePlayerSession(payload, env, corsHeaders) {
   };
 
   await updateIssue(env, issue.number, { body: buildPlayerIssueBody(next) });
+  await savePlayerSecret(env, next.alias, next.pinHash);
   await createIssueComment(
     env,
     issue.number,
@@ -571,9 +743,10 @@ async function handlePlayerWager(payload, env, corsHeaders) {
   const alias = String(payload.alias).toUpperCase();
   const issue = await findPlayerIssueByAlias(env, alias);
   if (!issue) return json({ error: 'Jugador no encontrado' }, 404, corsHeaders);
-  const parsed = parsePlayerIssue(issue);
-  if (!parsed || parsed.pinHash.toLowerCase() !== payload.pinHash.toLowerCase()) {
-    return json({ error: 'Alias o PIN incorrecto' }, 403, corsHeaders);
+  const parsed = await attachPlayerSecret(env, parsePlayerIssue(issue));
+  if (!parsed || !parsed.pinHash) return json({ error: 'Jugador no valido' }, 404, corsHeaders);
+  if (!(await isAuthorizedPlayer(payload, parsed))) {
+    return json({ error: 'Alias o credenciales incorrectas.' }, 403, corsHeaders);
   }
 
   const now = new Date().toISOString();
@@ -600,9 +773,10 @@ async function handlePlayerLedger(payload, env, corsHeaders) {
   const alias = String(payload.alias).toUpperCase();
   const issue = await findPlayerIssueByAlias(env, alias);
   if (!issue) return json({ error: 'Jugador no encontrado' }, 404, corsHeaders);
-  const parsed = parsePlayerIssue(issue);
-  if (!parsed || parsed.pinHash.toLowerCase() !== payload.pinHash.toLowerCase()) {
-    return json({ error: 'Alias o PIN incorrecto' }, 403, corsHeaders);
+  const parsed = await attachPlayerSecret(env, parsePlayerIssue(issue));
+  if (!parsed || !parsed.pinHash) return json({ error: 'Jugador no valido' }, 404, corsHeaders);
+  if (!(await isAuthorizedPlayer(payload, parsed))) {
+    return json({ error: 'Alias o credenciales incorrectas.' }, 403, corsHeaders);
   }
 
   const comments = await listIssueComments(env, issue.number);
@@ -642,8 +816,8 @@ async function handleAdminPlayer(payload, env, corsHeaders) {
   const alias = String(payload.alias).toUpperCase();
   const issue = await findPlayerIssueByAlias(env, alias);
   if (!issue) return json({ error: 'Jugador no encontrado' }, 404, corsHeaders);
-  const parsed = parsePlayerIssue(issue);
-  if (!parsed) return json({ error: 'Jugador no valido' }, 404, corsHeaders);
+  const parsed = await attachPlayerSecret(env, parsePlayerIssue(issue));
+  if (!parsed || !parsed.pinHash) return json({ error: 'Jugador no valido' }, 404, corsHeaders);
   const comments = await listIssueComments(env, issue.number);
   const entries = comments.map(parseLedgerComment).filter(Boolean).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   return json({
@@ -669,13 +843,14 @@ async function handleAdminPlayerCredits(payload, env, corsHeaders) {
   const alias = String(payload.alias).toUpperCase();
   const issue = await findPlayerIssueByAlias(env, alias);
   if (!issue) return json({ error: 'Jugador no encontrado' }, 404, corsHeaders);
-  const parsed = parsePlayerIssue(issue);
-  if (!parsed) return json({ error: 'Jugador no valido' }, 404, corsHeaders);
+  const parsed = await attachPlayerSecret(env, parsePlayerIssue(issue));
+  if (!parsed || !parsed.pinHash) return json({ error: 'Jugador no valido' }, 404, corsHeaders);
   const now = new Date().toISOString();
   const delta = Math.trunc(Number(payload.delta));
   const credits = clampInt(parsed.credits + delta, 0, MAX_CREDITS);
   const updated = { ...parsed, credits, updatedAt: now, lastSeen: now };
   await updateIssue(env, issue.number, { body: buildPlayerIssueBody(updated) });
+  await savePlayerSecret(env, updated.alias, updated.pinHash);
   await createIssueComment(env, issue.number, buildLedgerComment({
     date: now,
     kind: delta > 0 ? 'adminplus' : 'adminminus',
@@ -700,6 +875,59 @@ async function handleAdminPlayerCredits(payload, env, corsHeaders) {
     updatedAt: updated.updatedAt,
     entries,
   }, 200, corsHeaders);
+}
+
+
+async function handleAdminPlayerPin(payload, env, corsHeaders) {
+  const validation = validateAdminPlayerPinPayload(payload);
+  if (validation) return json({ error: validation }, 400, corsHeaders);
+  const alias = String(payload.alias).toUpperCase();
+  const issue = await findPlayerIssueByAlias(env, alias);
+  if (!issue) return json({ error: 'Jugador no encontrado' }, 404, corsHeaders);
+  const parsed = await attachPlayerSecret(env, parsePlayerIssue(issue));
+  if (!parsed || !parsed.pinHash) return json({ error: 'Jugador no valido' }, 404, corsHeaders);
+
+  const now = new Date().toISOString();
+  const updated = {
+    ...parsed,
+    pinHash: String(payload.pinHash).trim().toLowerCase(),
+    updatedAt: now,
+    lastSeen: now,
+  };
+  await updateIssue(env, issue.number, { body: buildPlayerIssueBody(updated) });
+  await savePlayerSecret(env, updated.alias, updated.pinHash);
+  await createIssueComment(env, issue.number, buildLedgerComment({
+    date: now,
+    kind: 'adminplus',
+    amount: 0,
+    balanceAfter: updated.credits,
+    detail: 'Administrador cambio el PIN del usuario',
+  }));
+
+  const comments = await listIssueComments(env, issue.number);
+  const entries = comments.map(parseLedgerComment).filter(Boolean).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  return json({
+    ok: true,
+    alias: updated.alias,
+    credits: updated.credits,
+    gamesPlayed: updated.gamesPlayed,
+    normalGames: updated.normalGames,
+    holeGames: updated.holeGames,
+    totalWagered: updated.totalWagered,
+    totalPayout: updated.totalPayout,
+    bestScore: updated.bestScore,
+    highestTile: updated.highestTile,
+    lastSeen: updated.lastSeen,
+    updatedAt: updated.updatedAt,
+    entries,
+  }, 200, corsHeaders);
+}
+
+async function handleAdminPinSave(payload, env, corsHeaders) {
+  const validation = validateAdminPinSavePayload(payload);
+  if (validation) return json({ error: validation }, 400, corsHeaders);
+  await saveAdminPinHash(env, String(payload.pinHash).trim().toLowerCase());
+  return json({ ok: true }, 200, corsHeaders);
 }
 
 async function handleAdminOverview(env, corsHeaders) {
@@ -853,7 +1081,6 @@ function buildPlayerIssueBody(player) {
     'Advanced mode player account',
     '',
     `Alias: ${player.alias}`,
-    `PinHash: ${player.pinHash}`,
     `Credits: ${player.credits}`,
     `GamesPlayed: ${player.gamesPlayed}`,
     `NormalGames: ${player.normalGames}`,
@@ -878,10 +1105,10 @@ function buildPlayerIssueBody(player) {
 function parsePlayerIssue(issue) {
   const body = issue.body || '';
   const alias = body.match(/Alias:\s*([A-Za-z0-9_-]{3,16})/i)?.[1];
-  const pinHash = body.match(/PinHash:\s*([a-f0-9]{64})/i)?.[1];
+  const pinHash = body.match(/PinHash:\s*([a-f0-9]{64})/i)?.[1] || '';
   const creditsText = body.match(/Credits:\s*([0-9]+)/i)?.[1];
   const createdAt = body.match(/CreatedAt:\s*([^\n]+)/i)?.[1] || issue.created_at;
-  if (!alias || !pinHash || !creditsText) return null;
+  if (!alias || !creditsText) return null;
   return {
     alias,
     pinHash,

@@ -489,6 +489,10 @@ const adminUserCloseButton = document.getElementById("admin-user-close-button");
 const adminUserCreditDeltaInput = document.getElementById("admin-user-credit-delta");
 const adminUserAddCreditsButton = document.getElementById("admin-user-add-credits-button");
 const adminUserSubtractCreditsButton = document.getElementById("admin-user-subtract-credits-button");
+const adminUserNewPinInput = document.getElementById("admin-user-new-pin");
+const adminUserSetPinButton = document.getElementById("admin-user-set-pin-button");
+const adminNewPinInput = document.getElementById("admin-new-pin-input");
+const adminSavePinButton = document.getElementById("admin-save-pin-button");
 const adminBetsBodyElement = document.getElementById("admin-bets-body");
 const adminAddBetButton = document.getElementById("admin-add-bet-button");
 const adminSaveBetsButton = document.getElementById("admin-save-bets-button");
@@ -812,10 +816,10 @@ function loadAdvancedPlayerAuth() {
     const raw = localStorage.getItem(ADVANCED_PLAYER_AUTH_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed?.alias || !parsed?.pinHash) return null;
+    if (!parsed?.alias || !parsed?.playerToken) return null;
     return {
       alias: String(parsed.alias),
-      pinHash: String(parsed.pinHash),
+      playerToken: String(parsed.playerToken),
       credits: Number(parsed.credits ?? DEFAULT_ADVANCED_CREDITS),
     };
   } catch {
@@ -1242,7 +1246,7 @@ async function syncAdvancedPlayer(alias, pinHash) {
   const body = await postWorkerJson("/player/access", { alias, pinHash });
   advancedPlayerAuth = {
     alias: body.alias,
-    pinHash,
+    playerToken: String(body.playerToken || ""),
     credits: Number(body.credits ?? DEFAULT_ADVANCED_CREDITS),
   };
   advancedCredits = advancedPlayerAuth.credits;
@@ -1252,19 +1256,20 @@ async function syncAdvancedPlayer(alias, pinHash) {
 }
 
 async function syncAdvancedCredits(nextCredits) {
-  if (!advancedPlayerAuth?.alias || !advancedPlayerAuth?.pinHash) {
+  if (!advancedPlayerAuth?.alias || !advancedPlayerAuth?.playerToken) {
     throw new Error("Jugador avanzado no autenticado");
   }
 
   const body = await postWorkerJson("/player/credits", {
     alias: advancedPlayerAuth.alias,
-    pinHash: advancedPlayerAuth.pinHash,
+    playerToken: advancedPlayerAuth.playerToken,
     credits: Math.max(0, Math.trunc(nextCredits)),
   });
 
   advancedCredits = Number(body.credits ?? 0);
   advancedPlayerAuth = {
     ...advancedPlayerAuth,
+    playerToken: String(body.playerToken || advancedPlayerAuth.playerToken || ""),
     credits: advancedCredits,
   };
   saveAdvancedPlayerAuth(advancedPlayerAuth);
@@ -1286,11 +1291,11 @@ function syncAdvancedCreditsLocally(nextCredits, alias = "") {
 }
 
 async function recordAdvancedWager(round) {
-  if (!advancedPlayerAuth?.alias || !advancedPlayerAuth?.pinHash || !round?.wagers?.length) return;
+  if (!advancedPlayerAuth?.alias || !advancedPlayerAuth?.playerToken || !round?.wagers?.length) return;
   try {
     await postWorkerJson("/player/wager", {
       alias: advancedPlayerAuth.alias,
-      pinHash: advancedPlayerAuth.pinHash,
+      playerToken: advancedPlayerAuth.playerToken,
       mode: round.mode,
       category: getCurrentRecordCategory(),
       totalStake: Number(round.totalStake || 0),
@@ -1308,13 +1313,13 @@ async function recordAdvancedWager(round) {
 
 async function reportAdvancedSession(reason, settlement = {}) {
   if (!advancedMode || demoMode || advancedSessionReported) return;
-  if (!advancedPlayerAuth?.alias || !advancedPlayerAuth?.pinHash) return;
+  if (!advancedPlayerAuth?.alias || !advancedPlayerAuth?.playerToken) return;
   advancedSessionReported = true;
 
   try {
     await postWorkerJson("/player/session", {
       alias: advancedPlayerAuth.alias,
-      pinHash: advancedPlayerAuth.pinHash,
+      playerToken: advancedPlayerAuth.playerToken,
       mode: `${boardSize}x${boardSize}`,
       category: getCurrentRecordCategory(),
       reason,
@@ -1395,13 +1400,24 @@ async function settleAdvancedRound(reason) {
 async function ensureAdvancedPlayer(options = {}) {
   const { prompt = false } = options;
   if (!advancedMode) return false;
-  if (!advancedPlayerAuth?.alias || !advancedPlayerAuth?.pinHash) {
+  if (!advancedPlayerAuth?.alias || !advancedPlayerAuth?.playerToken) {
     if (prompt) openAdvancedAuthEntry();
     return false;
   }
 
   try {
-    await syncAdvancedPlayer(advancedPlayerAuth.alias, advancedPlayerAuth.pinHash);
+    const body = await postWorkerJson("/player/access", {
+      alias: advancedPlayerAuth.alias,
+      playerToken: advancedPlayerAuth.playerToken,
+    });
+    advancedPlayerAuth = {
+      ...advancedPlayerAuth,
+      alias: body.alias,
+      playerToken: String(body.playerToken || advancedPlayerAuth.playerToken || ""),
+      credits: Number(body.credits ?? advancedCredits),
+    };
+    saveAdvancedPlayerAuth(advancedPlayerAuth);
+    advancedCredits = advancedPlayerAuth.credits;
     return true;
   } catch (error) {
     saveAdvancedPlayerAuth(null);
@@ -1847,7 +1863,7 @@ function renderLedgerPanel() {
 
 async function loadLedger(force = false) {
   if (ledgerLoading && !force) return;
-  if (!advancedPlayerAuth?.alias || !advancedPlayerAuth?.pinHash) {
+  if (!advancedPlayerAuth?.alias || !advancedPlayerAuth?.playerToken) {
     setStatus("Entra con alias y PIN para ver el extracto.");
     return;
   }
@@ -1856,7 +1872,7 @@ async function loadLedger(force = false) {
   try {
     ledgerData = await postWorkerJson("/player/ledger", {
       alias: advancedPlayerAuth.alias,
-      pinHash: advancedPlayerAuth.pinHash,
+      playerToken: advancedPlayerAuth.playerToken,
     });
     if (ledgerData?.alias && ledgerData.alias === advancedPlayerAuth.alias) {
       syncAdvancedCreditsLocally(ledgerData.credits, ledgerData.alias);
@@ -2178,6 +2194,54 @@ function updateMomentumFromBoard() {
       announceMatchCommentary(nextLabel === "Remontada" ? "comeback" : "build", { moves: moveSequence }, "accent");
       lastMomentumAnnouncement = nextLabel;
     }
+  }
+}
+
+async function updateAdminUserPin() {
+  if (!adminSelectedUserAlias) return;
+  const nextPin = String(adminUserNewPinInput?.value || "").trim();
+  if (!/^[0-9]{4}$/.test(nextPin)) {
+    if (adminUserStatusElement) adminUserStatusElement.textContent = "El nuevo PIN del jugador debe tener 4 cifras.";
+    return;
+  }
+  try {
+    adminUserLoading = true;
+    renderAdminUserPanel();
+    const pinHash = await sha256Hex(nextPin);
+    adminSelectedUserData = await postWorkerJson("/admin/player/pin", {
+      alias: adminSelectedUserAlias,
+      pinHash,
+    });
+    if (adminUserNewPinInput) adminUserNewPinInput.value = "";
+    if (adminUserStatusElement) adminUserStatusElement.textContent = `PIN de ${adminSelectedUserAlias} actualizado correctamente.`;
+    if (advancedPlayerAuth?.alias && adminSelectedUserData?.alias === advancedPlayerAuth.alias) {
+      logoutAdvancedPlayer();
+      setStatus("PIN del jugador actual cambiado. Vuelve a iniciar sesion.");
+    }
+  } catch (error) {
+    if (adminUserStatusElement) adminUserStatusElement.textContent = `No pude cambiar el PIN: ${error.message}`;
+  } finally {
+    adminUserLoading = false;
+    renderAdminUserPanel();
+  }
+}
+
+async function updateAdminPanelPin() {
+  const nextPin = String(adminNewPinInput?.value || "").trim();
+  if (!/^[0-9]{6}$/.test(nextPin)) {
+    setAdminPanelStatus("El nuevo PIN del panel debe tener 6 cifras.");
+    return;
+  }
+  try {
+    const pinHash = await sha256Hex(nextPin);
+    await postWorkerJson("/admin/pin/save", { pinHash });
+    adminSessionToken = "";
+    sessionStorage.removeItem(ADMIN_SESSION_TOKEN_KEY);
+    if (adminNewPinInput) adminNewPinInput.value = "";
+    setAdminPanelStatus("PIN del panel actualizado. Vuelve a autenticarte con el nuevo valor.");
+    setAdminPanelOpen(false);
+  } catch (error) {
+    setAdminPanelStatus(`No pude cambiar el PIN del panel: ${error.message}`);
   }
 }
 
@@ -3126,10 +3190,14 @@ async function submitAdvancedAuth() {
   const pin = (advancedPinInput?.value || "").trim();
 
   if (!isValidAdvancedAlias(alias)) {
+    const help = advancedAuthEntryElement?.querySelector(".advanced-auth-help");
+    if (help) help.textContent = "Alias invalido. Usa 3-16 caracteres, letras, numeros, _ o -.";
     setStatus("Alias invalido. Usa 3-16 caracteres, letras, numeros, _ o -.");
     return;
   }
   if (!isValidAdvancedPin(pin)) {
+    const help = advancedAuthEntryElement?.querySelector(".advanced-auth-help");
+    if (help) help.textContent = "El PIN debe tener exactamente 4 cifras.";
     setStatus("El PIN debe tener 4 cifras.");
     return;
   }
@@ -3140,9 +3208,13 @@ async function submitAdvancedAuth() {
   try {
     const pinHash = await sha256Hex(pin);
     const result = await syncAdvancedPlayer(alias, pinHash);
+    const help = advancedAuthEntryElement?.querySelector(".advanced-auth-help");
+    if (help) help.textContent = result.created ? "Cuenta creada correctamente." : "Acceso correcto.";
     closeAdvancedAuthEntry();
     setStatus(result.created ? `Jugador ${alias} creado con ${result.credits} creditos.` : `Jugador ${alias} conectado.`);
   } catch (error) {
+    const help = advancedAuthEntryElement?.querySelector(".advanced-auth-help");
+    if (help) help.textContent = error.message || "No pude acceder a esa cuenta.";
     setStatus(`Modo avanzado: ${error.message}`);
   } finally {
     advancedAuthSubmitButton.disabled = false;
@@ -6739,6 +6811,8 @@ adminUserRefreshButton?.addEventListener("click", () => { if (adminSelectedUserA
 adminUserCloseButton?.addEventListener("click", () => closeAdminUserPanel());
 adminUserAddCreditsButton?.addEventListener("click", () => { void adjustAdminUserCredits("add"); });
 adminUserSubtractCreditsButton?.addEventListener("click", () => { void adjustAdminUserCredits("subtract"); });
+adminUserSetPinButton?.addEventListener("click", () => { void updateAdminUserPin(); });
+adminSavePinButton?.addEventListener("click", () => { void updateAdminPanelPin(); });
 creditsElement?.addEventListener("click", () => { void loadLedger(); setLedgerPanelOpen(true); });
 creditsElement?.addEventListener("keydown", (event) => {
   if (event.key === "Enter" || event.key === " ") {
