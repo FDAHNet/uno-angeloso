@@ -2601,6 +2601,10 @@ function setGamePaused(nextPaused, options = {}) {
     gameTimerStartedAt = Date.now();
     realGameTimerStartedAt = gameTimerStartedAt;
     stopGameTimer();
+    if (holeTimer) {
+      window.clearTimeout(holeTimer);
+      holeTimer = null;
+    }
     setPauseOverlay(true);
     setStatus(statusMessage);
     updatePauseButton();
@@ -2622,6 +2626,9 @@ function setGamePaused(nextPaused, options = {}) {
     maybeAutosaveSession();
   }, 250);
   setStatus(statusMessage);
+  if (holeMode) {
+    scheduleHoleMove();
+  }
   if (persist) persistSessionSnapshot();
 }
 
@@ -3003,7 +3010,7 @@ function startGame(options = {}) {
   lastCommentaryScoreBucket = 0;
   commentaryLastIndexByCategory = {};
   globalRecordFanfarePlayed = false;
-  globalRecordsLoaded = false;
+  globalRecordsLoaded = hasAnyGlobalRecords(globalRecordsCache);
   clearBestScoreCelebration();
   updatePauseButton();
   startGameTimer();
@@ -3033,7 +3040,9 @@ function startGame(options = {}) {
     clearSessionSnapshot();
   }
   if (!demoMode) {
-    renderGlobalRecordsLoading();
+    if (!hasAnyGlobalRecords(globalRecordsCache)) {
+      renderGlobalRecordsLoading();
+    }
     fetchGlobalRecords();
   }
   setStatus(demoMode ? "MODO DEMO" : "");
@@ -3791,7 +3800,9 @@ function scheduleHoleMove() {
   const holeDelay = Math.max(6, getCurrentMoveDuration());
   holeTimer = window.setTimeout(() => {
     if (holeSessionId !== gameSessionId) return;
+    holeTimer = null;
     if (!holeMode || isAnimating || replayMode || initialsEntryState.active || demoMode) return;
+    if (gamePaused) return;
     if (gameState.over) {
       endGameByMachine();
       return;
@@ -4644,6 +4655,12 @@ function renderGlobalRecordsError() {
   syncExpandedRecordsUI();
 }
 
+function hasAnyGlobalRecords(recordsByMode = globalRecordsCache) {
+  return GLOBAL_MODES.some((mode) =>
+    RECORD_CATEGORIES.some((category) => (recordsByMode?.[mode]?.[category] || []).length)
+  );
+}
+
 function getCurrentBoardModeLabel() {
   const size = Number(boardSizeSelect.value || boardSize);
   return `${size}x${size}`;
@@ -4920,7 +4937,14 @@ function scheduleNextRecordsMiniTickerStep() {
 }
 
 function updateRecordsMiniTicker(recordsByMode = globalRecordsCache) {
-  recordsMiniTickerEntries = buildRecordsMiniTickerEntries(recordsByMode);
+  const nextEntries = buildRecordsMiniTickerEntries(recordsByMode);
+  if (!nextEntries.length && recordsMiniTickerEntries.length) {
+    if (!recordsMiniTickerTimer) {
+      scheduleNextRecordsMiniTickerStep();
+    }
+    return;
+  }
+  recordsMiniTickerEntries = nextEntries;
   recordsMiniTickerIndex = 0;
   scheduleNextRecordsMiniTickerStep();
 }
