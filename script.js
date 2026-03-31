@@ -2280,10 +2280,8 @@ function renderStatsPanel() {
   const averageScore = totalMoves ? (gameState.score / totalMoves).toFixed(1) : "0.0";
   const mode = `${boardSize}x${boardSize}`;
   const achievementValues = journalEntries.map((entry) => Number(entry.value) || 0);
-  const biggestAchievement = achievementValues.length ? Math.max(...achievementValues) : 0;
   const reasonLabel = gameState.over ? (lastGameOverReason || "BY MACHINE") : "EN JUEGO";
   const directionStats = getMoveDirectionStats();
-  const decisiveMinute = formatElapsedTime(decisiveMomentMs || getElapsedMs());
   const milestoneTargets = [
     { label: "128", min: 128 },
     { label: "256", min: 256 },
@@ -2358,19 +2356,6 @@ function renderStatsPanel() {
         <div class="stats-card">
           <span class="stats-card-label">Mejor racha</span>
           <span class="stats-card-value">x${bestFusionStreak}</span>
-        </div>
-      </div>
-      <div class="stats-section">
-        <h4>Resumen rapido</h4>
-        <div class="stats-list">
-          <div class="stats-list-row">
-            <span>Mayor logro anotado</span>
-            <span>${biggestAchievement || "-"}</span>
-          </div>
-          <div class="stats-list-row">
-            <span>Minuto decisivo</span>
-            <span>${decisiveMinute}</span>
-          </div>
         </div>
       </div>
       <div class="stats-section">
