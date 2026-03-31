@@ -642,6 +642,7 @@ let lastCommentaryScoreBucket = 0;
 let adminPanelOpen = false;
 let adminPinGateOpen = false;
 let adminPanelPausedGame = false;
+let adminPanelPausedMusic = false;
 let adminPanelLoading = false;
 let adminSessionToken = sessionStorage.getItem(ADMIN_SESSION_TOKEN_KEY) || "";
 let adminOverview = null;
@@ -2166,6 +2167,10 @@ function setAdminPanelOpen(nextOpen) {
     } else {
       adminPanelPausedGame = false;
     }
+    adminPanelPausedMusic = Boolean(musicEnabled && musicAudioElement && !musicAudioElement.paused);
+    if (adminPanelPausedMusic) {
+      pauseMusicPlayback();
+    }
     renderAdminOverview();
     void loadAdminOverview();
     return;
@@ -2174,7 +2179,12 @@ function setAdminPanelOpen(nextOpen) {
     adminPanelPausedGame = false;
     setGamePaused(false, { statusMessage: "Partida reanudada.", persist: true });
   }
+  if (adminPanelPausedMusic) {
+    adminPanelPausedMusic = false;
+    resumeMusicPlayback();
+  }
   adminPanelPausedGame = false;
+  adminPanelPausedMusic = false;
 }
 
 function openAdminPinGate() {
@@ -6532,6 +6542,34 @@ function stopMusicPlayback() {
     musicAudioElement.pause();
   }
   updateMusicGain();
+  renderMusicInfo();
+}
+
+function pauseMusicPlayback() {
+  if (musicLoopTimeout) {
+    window.clearTimeout(musicLoopTimeout);
+    musicLoopTimeout = null;
+  }
+  stopMusicTimer();
+  if (musicAudioElement) {
+    musicAudioElement.pause();
+  }
+  renderMusicInfo();
+}
+
+function resumeMusicPlayback() {
+  if (!musicEnabled) return;
+  const audio = ensureMusicAudioElement();
+  if (!audio) return;
+  updateMusicGain();
+  startMusicTimer();
+  const playPromise = audio.play();
+  if (playPromise?.catch) {
+    playPromise.catch(() => {
+      stopMusicTimer();
+      renderMusicInfo();
+    });
+  }
   renderMusicInfo();
 }
 
