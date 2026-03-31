@@ -4368,7 +4368,7 @@ function renderJournal() {
   }
 
   journalTitleElement.textContent = journalTitleElement.dataset.defaultTitle || "Bitacora";
-  journalSubtitleElement.textContent = "Logros de 128 o mas durante la partida.";
+  journalSubtitleElement.textContent = "";
 
   if (!journalEntries.length) {
     const empty = document.createElement("div");

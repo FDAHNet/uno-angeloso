@@ -1101,7 +1101,7 @@ button:hover {
 }
 
 .journal-panel {
-  order: 1;
+  order: 0;
   width: min(280px, 26vw);
   min-height: var(--board-size);
   max-height: var(--board-size);
@@ -1694,7 +1694,7 @@ button:hover {
 }
 
 .stats-panel {
-  order: 0;
+  order: 1;
   width: min(320px, 29vw);
   min-height: var(--board-size);
   max-height: var(--board-size);
@@ -1830,6 +1830,7 @@ button:hover {
 }
 
 .side-actions {
+  order: 3;
   width: 190px;
   min-height: var(--board-size);
   display: flex;
