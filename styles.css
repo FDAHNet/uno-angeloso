@@ -1101,6 +1101,7 @@ button:hover {
 }
 
 .journal-panel {
+  order: 1;
   width: min(280px, 26vw);
   min-height: var(--board-size);
   max-height: var(--board-size);
@@ -1358,6 +1359,7 @@ button:hover {
 }
 
 .board-shell {
+  order: 2;
   position: relative;
   width: calc(var(--board-size) + (var(--coord-band) * 2));
   height: calc(var(--board-size) + var(--coord-band));
@@ -1692,6 +1694,7 @@ button:hover {
 }
 
 .stats-panel {
+  order: 0;
   width: min(320px, 29vw);
   min-height: var(--board-size);
   max-height: var(--board-size);
@@ -1736,8 +1739,8 @@ button:hover {
 .stats-panel-head h3 {
   margin: 6px 0 0;
   font-family: "Press Start 2P", "Space Grotesk", sans-serif;
-  font-size: clamp(1rem, 2vw, 1.3rem);
-  line-height: 1.35;
+  font-size: clamp(0.82rem, 1.45vw, 1rem);
+  line-height: 1.5;
 }
 
 .stats-panel-content {
@@ -1782,8 +1785,8 @@ button:hover {
   display: block;
   margin-top: 10px;
   font-family: "Press Start 2P", "Space Grotesk", sans-serif;
-  font-size: clamp(0.85rem, 1.7vw, 1.1rem);
-  line-height: 1.35;
+  font-size: clamp(0.66rem, 1.05vw, 0.82rem);
+  line-height: 1.55;
   color: var(--accent);
 }
 
