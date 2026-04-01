@@ -4602,7 +4602,8 @@ function renderJournal() {
   });
 }
 
-function addJournalEntry(value, row, col) {
+function addJournalEntry(value, row, col, options = {}) {
+  const { animate = true } = options;
   const now = new Date();
   const entry = {
     id: `entry-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -4622,7 +4623,9 @@ function addJournalEntry(value, row, col) {
   journalEntries.unshift(entry);
   renderJournal();
   journalListElement.scrollTop = 0;
-  animateJournalFlight(entry);
+  if (animate) {
+    animateJournalFlight(entry);
+  }
 }
 
 function animateJournalFlight(entry) {
@@ -6189,6 +6192,7 @@ function move(direction) {
   let highestMerge = 0;
   const mergedTargets = new Set();
   const epicBursts = [];
+  const journalAchievements = [];
   const mergeGhosts = [];
   const touchedRows = new Set();
   const touchedCols = new Set();
@@ -6236,6 +6240,9 @@ function move(direction) {
         moved = true;
         hadMerge = true;
         highestMerge = Math.max(highestMerge, newValue);
+        if (newValue >= 128) {
+          journalAchievements.push({ row: target.row, col: target.col, value: newValue });
+        }
         if (newValue > 32 && !holeTurbo) {
           scheduleEpicEffect(target);
           epicBursts.push({ row: target.row, col: target.col, value: newValue });
@@ -6342,11 +6349,10 @@ function move(direction) {
     pushHistoryEntry(direction);
     persistSessionSnapshot();
 
+    journalAchievements.forEach((entry) => addJournalEntry(entry.value, entry.row, entry.col, { animate: !holeTurbo }));
+
     if (!holeTurbo) {
       epicBursts.forEach((entry) => createEpicBurst(entry.row, entry.col, entry.value));
-      epicBursts
-        .filter((entry) => entry.value > 64)
-        .forEach((entry) => addJournalEntry(entry.value, entry.row, entry.col));
     }
 
     if (!gameState.won && hasTileAtLeast(2048)) {
