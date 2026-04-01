@@ -1529,10 +1529,10 @@ function positionStatsPanel() {
   if (!boardRect) return;
   const heroRect = heroElement?.getBoundingClientRect();
   const gap = 22;
-  const width = Math.max(500, Math.min(680, Math.round(window.innerWidth * 0.36)));
+  const width = Math.max(560, Math.min(760, Math.round(window.innerWidth * 0.4)));
   const left = Math.max(18, Math.round(boardRect.left - width - gap));
   const top = Math.max(18, Math.round((heroRect?.top ?? 18) + 2));
-  const maxHeight = Math.max(360, Math.min(700, window.innerHeight - top - 24));
+  const maxHeight = Math.max(520, Math.min(980, window.innerHeight - top - 12));
   statsPanelElement.style.left = `${left}px`;
   statsPanelElement.style.top = `${top}px`;
   statsPanelElement.style.width = `${width}px`;
