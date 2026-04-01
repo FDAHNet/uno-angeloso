@@ -7475,6 +7475,22 @@ statsPanelContentElement?.addEventListener("keydown", (event) => {
   event.preventDefault();
   handleStatsMilestoneActivation(event.target);
 });
+statsMilestonePopoverElement?.addEventListener("pointerdown", (event) => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (!target.closest(".stats-milestone-popover-close")) return;
+  event.preventDefault();
+  event.stopPropagation();
+  closeStatsMilestonePopover();
+});
+statsMilestonePopoverElement?.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (!target.closest(".stats-milestone-popover-close")) return;
+  event.preventDefault();
+  event.stopPropagation();
+  closeStatsMilestonePopover();
+});
 closeStatsButton?.addEventListener("click", () => setStatsPanelOpen(false));
 shareStatsButton?.addEventListener("click", () => {
   if (!canShowPostGameStats()) return;
