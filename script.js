@@ -6571,14 +6571,19 @@ function move(direction) {
     const scoreBucket = Math.floor(gameState.score / 1000);
     const nextMoveNumber = moveSequence + 1;
     const crossedScoreBucket = scoreBucket > lastCommentaryScoreBucket;
+    const allowPerMoveCommentary = !holeMode || !holeTurbo;
     if (!demoMode) {
       if (gained > 0) {
         currentFusionStreak += 1;
         bestFusionStreak = Math.max(bestFusionStreak, currentFusionStreak);
         if (currentFusionStreak >= 3 && (currentFusionStreak === 3 || currentFusionStreak % 2 === 1)) {
           noteDecisiveMoment(`Racha x${currentFusionStreak}`);
-          showSystemAnnouncement(`EN RACHA x${currentFusionStreak}`, "accent");
-          announceMatchCommentary("comeback", { moves: nextMoveNumber }, "accent");
+          if (!holeMode) {
+            showSystemAnnouncement(`EN RACHA x${currentFusionStreak}`, "accent");
+          }
+          if (allowPerMoveCommentary) {
+            announceMatchCommentary("comeback", { moves: nextMoveNumber }, "accent");
+          }
         }
       } else {
         currentFusionStreak = 0;
@@ -6596,16 +6601,18 @@ function move(direction) {
       } else if (highestMerge >= 512) {
         noteDecisiveMoment(`Se alcanzo ${highestMerge}`);
         announceMatchCommentary("tile512", { value: highestMerge }, "accent", { force: true });
-      } else if (highestMerge >= 256) {
+      } else if (allowPerMoveCommentary && highestMerge >= 256) {
         announceMatchCommentary("tile256", { value: highestMerge }, "normal");
-      } else if (highestMerge >= 128) {
+      } else if (allowPerMoveCommentary && highestMerge >= 128) {
         announceMatchCommentary("tile128", { value: highestMerge }, "normal");
-      } else if (crossedScoreBucket && scoreBucket > 0) {
+      } else if (allowPerMoveCommentary && crossedScoreBucket && scoreBucket > 0) {
         announceMatchCommentary("score", { score: gameState.score }, "normal");
-      } else {
+      } else if (allowPerMoveCommentary) {
         maybeAnnounceAmbientCommentary(nextMoveNumber, gained, highestMerge, crossedScoreBucket);
       }
-      updateMomentumFromBoard();
+      if (allowPerMoveCommentary) {
+        updateMomentumFromBoard();
+      }
     }
     pushHistoryEntry(direction);
     persistSessionSnapshot();
