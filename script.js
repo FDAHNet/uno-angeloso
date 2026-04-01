@@ -2827,6 +2827,44 @@ function buildFinalStatsEmailBody() {
   ].join("\n");
 }
 
+function buildFinalStatsEmailSummaryBody() {
+  const elapsedText = formatElapsedTime(getRealElapsedMs());
+  const totalMoves = moveSequence;
+  const mode = `${boardSize}x${boardSize}`;
+  const highestTile = getHighestTileValue();
+  const directionStats = getMoveDirectionStats();
+  const topDirectionEntry = Object.entries(directionStats).sort((a, b) => b[1] - a[1])[0] || ["up", 0];
+  const lowDirectionEntry = Object.entries(directionStats).sort((a, b) => a[1] - b[1])[0] || ["up", 0];
+  const elapsedMinutes = Math.max(1 / 60, getRealElapsedMs() / 60000);
+  const scorePerMinute = Number(gameState.score / elapsedMinutes).toFixed(1);
+  const milestoneStats = getMilestoneStats()
+    .filter((entry) => entry.count > 0)
+    .slice(0, 6)
+    .map((entry) => `- ${entry.label}: ${entry.count} (primera vez en ${entry.firstTime})`)
+    .join("\n");
+
+  return [
+    `Estadisticas Finales de 2048 Angeloso`,
+    ``,
+    `Jugador: ${getCommentaryPlayerName()}`,
+    `Modo: ${mode}`,
+    `Categoria: ${getRecordCategoryLabel(getCurrentRecordCategory())}`,
+    `Final: ${lastGameOverReason || "BY MACHINE"}`,
+    `Puntuacion: ${formatAdminNumber(gameState.score)}`,
+    `Tiempo real: ${elapsedText}`,
+    `Jugadas: ${formatAdminNumber(totalMoves)}`,
+    `Ficha maxima: ${formatAdminNumber(highestTile)}`,
+    `Puntos por minuto: ${scorePerMinute}`,
+    `Direccion favorita: ${getDirectionLabel(topDirectionEntry[0])}`,
+    `Direccion menos usada: ${getDirectionLabel(lowDirectionEntry[0])}`,
+    ``,
+    `Resumen por fichas`,
+    milestoneStats || "- Sin logros de 128 o superiores",
+    ``,
+    `Si quieres el informe completo, esta version lo copia al portapapeles automaticamente cuando el cliente de correo no admite tanto texto.`,
+  ].join("\n");
+}
+
 function stopGameTimer() {
   if (gameTimerInterval) {
     window.clearInterval(gameTimerInterval);
@@ -7416,8 +7454,19 @@ closeStatsButton?.addEventListener("click", () => setStatsPanelOpen(false));
 shareStatsButton?.addEventListener("click", () => {
   if (!canShowPostGameStats()) return;
   const subject = encodeURIComponent(`Estadisticas Finales 2048 Angeloso ${boardSize}x${boardSize}`);
-  const body = encodeURIComponent(buildFinalStatsEmailBody());
-  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  const fullBody = buildFinalStatsEmailBody();
+  const summaryBody = buildFinalStatsEmailSummaryBody();
+  const encodedSummary = encodeURIComponent(summaryBody);
+  const mailtoUrl = `mailto:?subject=${subject}&body=${encodedSummary}`;
+  const shouldCopyFullReport = fullBody.length > 1400;
+
+  if (shouldCopyFullReport && navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(fullBody)
+      .then(() => setStatus("Resumen abierto en email. Informe completo copiado al portapapeles."))
+      .catch(() => setStatus("Resumen abierto en email."));
+  }
+
+  window.location.href = mailtoUrl;
 });
 closeAdminButton?.addEventListener("click", () => {
   closeAdminUserPanel();
