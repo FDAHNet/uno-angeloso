@@ -423,6 +423,290 @@ const COMMENTARY_BANK = {
   ],
 };
 
+function buildCommentaryTriples(intros, middles, endings) {
+  const lines = [];
+  intros.forEach((intro) => {
+    middles.forEach((middle) => {
+      endings.forEach((ending) => {
+        lines.push(`${intro} ${middle} ${ending}`.replace(/\s+/g, " ").trim());
+      });
+    });
+  });
+  return lines;
+}
+
+function extendCommentaryBank(bank) {
+  const generated = {
+    kickoff: buildCommentaryTriples(
+      [
+        "Primer latido del tablero y {player} ya asoma intenciones.",
+        "Se abre la funcion de {mode} con {player} directo a la mesa.",
+        "Angeloso da la salida y {player} entra con mirada larga.",
+        "Empieza la velada y {player} no viene a tantear."
+      ],
+      [
+        "El primer orden del dia es poner ritmo y aire en las esquinas.",
+        "La cabina ya ve un plan de arranque con oficio.",
+        "La sensacion es de partido preparado, no de improvisacion.",
+        "Desde el primer toque se nota que aqui hay libreto."
+      ],
+      [
+        "Todo queda listo para una noche larga.",
+        "La grada virtual ya pide continuidad.",
+        "Empieza el viaje y no parece corto.",
+        "Hay ambiente de partida importante."
+      ]
+    ),
+    pressure: buildCommentaryTriples(
+      [
+        "{player} sigue en la cocina de la jugada sin levantar la voz.",
+        "No se rompe la tension y {player} sigue remando cada fila.",
+        "La cabina entra en minuto serio con {player} al mando.",
+        "Se juega despacio, pero no lento: {player} continua apretando."
+      ],
+      [
+        "Cada hueco vale oro y cada error costaria carisimo.",
+        "El tablero no regala nada y obliga a medir cada giro.",
+        "Hay una sensacion constante de partido trabajado al detalle.",
+        "No sobra espacio, pero tampoco falta cabeza."
+      ],
+      [
+        "La paciencia manda ahora mismo.",
+        "Es fase de respirar y sostener.",
+        "Todo se decide en pequenos gestos.",
+        "La partida pide temple por encima de brillo."
+      ]
+    ),
+    score: buildCommentaryTriples(
+      [
+        "Se mueve otra vez el marcador para {player}.",
+        "La cuenta sigue creciendo y la cabina toma nota.",
+        "El tanteo vuelve a empujar hacia arriba para {player}.",
+        "Sube el panel de puntos y se anima la narracion."
+      ],
+      [
+        "Ya se habla de {score} como cifra con peso.",
+        "La referencia de {score} aparece en pantalla con autoridad.",
+        "{score} ya no es un detalle, es una declaracion de intenciones.",
+        "La frontera de {score} entra en la conversacion grande."
+      ],
+      [
+        "Y no parece que esto se vaya a detener aun.",
+        "El ritmo de puntuacion sigue bien vivo.",
+        "La mesa responde al trabajo acumulado.",
+        "Se ve una partida con kilometros y premio."
+      ]
+    ),
+    tile128: buildCommentaryTriples(
+      [
+        "{player} levanta una pieza de 128 y el tono cambia.",
+        "Ya hay 128 en la mesa y eso siempre altera la respiracion del partido.",
+        "El 128 aparece por fin bajo la firma de {player}.",
+        "Se estrena la franja seria con un 128 para {player}."
+      ],
+      [
+        "Ese primer escalon grande abre la puerta a otra clase de relato.",
+        "La estructura gana respeto con solo mirar esa cifra.",
+        "El tablero empieza a hablar otro idioma a partir de aqui.",
+        "La jugada ya tiene olor a cadena larga."
+      ],
+      [
+        "La grada lo nota enseguida.",
+        "Ya no es una partida cualquiera.",
+        "Empieza la zona noble del tablero.",
+        "Se enciende otra luz en cabina."
+      ]
+    ),
+    tile256: buildCommentaryTriples(
+      [
+        "{player} pone 256 sobre la mesa con pulso firme.",
+        "El 256 ya es una realidad en esta historia.",
+        "Aparece el 256 y la noche gana peso especifico.",
+        "256 para {player}; ya se escucha otra musica en el tablero."
+      ],
+      [
+        "La organizacion del juego empieza a verse recompensada.",
+        "Ese valor obliga a tomarse el resto del trayecto en serio.",
+        "La mesa cambia de categoria con una sola fusion bien rematada.",
+        "El relato se va llenando de palabras mayores."
+      ],
+      [
+        "A partir de aqui hay partido grande.",
+        "Esto ya no va de salir del paso.",
+        "Se abre una fase con mas ambicion.",
+        "La mirada se va mas arriba."
+      ]
+    ),
+    tile512: buildCommentaryTriples(
+      [
+        "{player} aterriza en 512 y sacude el guion.",
+        "Ya vive un 512 en el tablero y eso pesa mucho.",
+        "El 512 aparece y la cabina se sienta mas recta.",
+        "Tenemos 512 en pantalla y el publico ya no pestañea."
+      ],
+      [
+        "Ese numero no llega por accidente, llega por insistencia.",
+        "La partida entra en un rango donde cualquier cosa grande parece posible.",
+        "La mesa empieza a respetar de verdad lo que esta ocurriendo.",
+        "Se nota el salto de altura en cada comentario."
+      ],
+      [
+        "Hay atmosfera de noche especial.",
+        "El techo se mueve hacia arriba.",
+        "La narracion gana voltaje.",
+        "Todo empieza a parecer mas serio."
+      ]
+    ),
+    tile1024: buildCommentaryTriples(
+      [
+        "{player} pisa el 1024 y la cabina se queda un segundo en silencio.",
+        "Ya esta el 1024 en escena y eso no se recibe sentado.",
+        "El 1024 llega por fin y cambia la escala completa de la partida.",
+        "Aparece el 1024 y el tablero entra en modo mayusculo."
+      ],
+      [
+        "Lo que antes parecia lejos ahora se puede tocar.",
+        "Cada movimiento posterior va a oler a historia grande.",
+        "La sensacion es que la noche se ha abierto de verdad.",
+        "Ya no se comenta una buena partida, se comenta una muy seria."
+      ],
+      [
+        "Y la grada digital lo celebra como toca.",
+        "Empieza el territorio que separa lo bueno de lo memorable.",
+        "La historia pide seguir mirando.",
+        "Ya no hay marcha atras en la emocion."
+      ]
+    ),
+    tile2048: buildCommentaryTriples(
+      [
+        "{player} alcanza 2048 y el tablero entra en la foto grande.",
+        "Ya hay 2048 en juego y la cabina se pone de pie.",
+        "El 2048 aparece por la puerta grande con firma de {player}.",
+        "2048 para {player}; momento de los que se recuerdan."
+      ],
+      [
+        "Esto valida toda la paciencia invertida durante la ruta.",
+        "El camino clasico queda coronado y aun puede haber mas.",
+        "La partida ya tiene un lugar reservado en el archivo de cabina.",
+        "La historia del turno se convierte en historia de sesion."
+      ],
+      [
+        "Noche grande, sin matices.",
+        "Lo importante ya ha pasado, y puede seguir pasando.",
+        "El publico virtual no se cansa de repetirlo.",
+        "Se escribe una pagina de las buenas."
+      ]
+    ),
+    record: buildCommentaryTriples(
+      [
+        "La persecucion del record cambia de manos con {player}.",
+        "El ranking siente el empuje de {player} desde la cabina.",
+        "La marca de referencia empieza a mirar por el retrovisor.",
+        "{player} se mete en una zona donde el record ya no es teoria."
+      ],
+      [
+        "Lo de {mode} adquiere ahora forma de asalto serio.",
+        "Cada punto nuevo tiene sabor a liderazgo provisional.",
+        "El techo conocido deja de parecer intocable.",
+        "La pelea historica se aprieta a favor del lado local."
+      ],
+      [
+        "El archivo de honor tiembla.",
+        "La tabla empieza a pedir una nueva foto.",
+        "La libreta del ranking ya pide correccion.",
+        "Todo huele a cambio arriba del todo."
+      ]
+    ),
+    build: buildCommentaryTriples(
+      [
+        "{player} vuelve a coser el tablero con hilo fino.",
+        "Se nota construccion paciente en cada linea que toca {player}.",
+        "{player} recompone la geometria con mano de relojero.",
+        "La casa vuelve a levantarse ficha a ficha para {player}."
+      ],
+      [
+        "No hay ruido, pero si mucho sentido en la estructura.",
+        "La jugada siguiente ya parece preparada varias veces antes de ocurrir.",
+        "Las filas se van alineando con esa calma que luego paga dividendos.",
+        "La sensacion es de orden que se cocina sin prisa."
+      ],
+      [
+        "Asi se levantan las partidas largas.",
+        "La base vuelve a ser digna de confianza.",
+        "Se trabaja para el futuro inmediato.",
+        "La mesa agradece la disciplina."
+      ]
+    ),
+    danger: buildCommentaryTriples(
+      [
+        "Se comprime el tablero y la alarma se enciende para {player}.",
+        "{player} entra en una fase donde sobran muy pocas casillas.",
+        "La mesa se cierra y obliga a un gesto de maxima precision.",
+        "Aparece un tramo de supervivencia pura para {player}."
+      ],
+      [
+        "Cualquier decision floja podria traer una factura inmediata.",
+        "El margen de maniobra se ha vuelto realmente corto.",
+        "No es momento de improvisar ni media columna.",
+        "La tension sube porque el aire no abunda."
+      ],
+      [
+        "Hace falta sangre fria.",
+        "Ahora manda el pulso.",
+        "Es zona de mucho oficio.",
+        "Aqui se prueba la cabeza del jugador."
+      ]
+    ),
+    comeback: buildCommentaryTriples(
+      [
+        "{player} encuentra una rendija y la convierte en salida de lujo.",
+        "La cabina canta reaccion porque {player} vuelve a respirar.",
+        "Se gira la inercia y {player} sale del atasco con estilo.",
+        "Vuelve el oxigeno para {player} tras una maniobra de gran nivel."
+      ],
+      [
+        "Lo que parecia cerrado se abre de golpe y cambia toda la conversacion.",
+        "La partida recupera espacio justo cuando parecia mas estrecha.",
+        "La respuesta tiene bastante mas valor del que parece a simple vista.",
+        "Hay sensacion de rescate convertido en impulso."
+      ],
+      [
+        "Eso vale media noche.",
+        "La grada lo lee como punto de inflexion.",
+        "Todo vuelve a respirar mejor.",
+        "El tablero cambia de humor."
+      ]
+    ),
+    marathon: buildCommentaryTriples(
+      [
+        "{player} sigue en pie y el reloj ya cuenta {minutes} minutos serios.",
+        "La sesion sigue viva con {minutes} minutos a la espalda.",
+        "Se superan los {minutes} minutos y aqui nadie baja la mirada.",
+        "{minutes} minutos despues, {player} continua peleando cada fila."
+      ],
+      [
+        "Esto hace rato que dejo de ser una partida corta.",
+        "La resistencia entra ya en la historia del propio duelo.",
+        "Cada nuevo tramo añade peso al relato total.",
+        "La noche se mide ya en fondo, no en chispazos."
+      ],
+      [
+        "Y todavia hay cuerda para mas.",
+        "La maraton sigue pidiendo piernas.",
+        "Esto va de constancia de verdad.",
+        "La sesion ya es una pequeña epopeya."
+      ]
+    ),
+  };
+
+  Object.entries(generated).forEach(([category, lines]) => {
+    if (!Array.isArray(bank[category])) bank[category] = [];
+    bank[category].push(...lines);
+  });
+}
+
+extendCommentaryBank(COMMENTARY_BANK);
+
 const boardElement = document.getElementById("board");
 const fxLayer = document.getElementById("fx-layer");
 const scoreElement = document.getElementById("score");
