@@ -2761,6 +2761,7 @@ function renderStatsPanel() {
       ${finalSummarySection}
       <div class="stats-section">
         <h4>Logros por ficha</h4>
+        <p class="stats-section-hint">(Pulsa encima de cualquier ficha para ver los resultados)</p>
         <div class="stats-milestones-grid">
           ${milestoneCards}
         </div>
