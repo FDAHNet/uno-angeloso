@@ -1511,6 +1511,7 @@ function positionStatsPanel() {
     statsPanelElement.style.left = `${left}px`;
     statsPanelElement.style.top = `${top}px`;
     statsPanelElement.style.width = `${width}px`;
+    statsPanelElement.style.height = `${maxHeight}px`;
     statsPanelElement.style.maxHeight = `${maxHeight}px`;
     return;
   }
@@ -1518,6 +1519,7 @@ function positionStatsPanel() {
     statsPanelElement.style.left = "";
     statsPanelElement.style.top = "";
     statsPanelElement.style.width = "";
+    statsPanelElement.style.height = "";
     statsPanelElement.style.maxHeight = "";
     return;
   }
@@ -1532,6 +1534,7 @@ function positionStatsPanel() {
   statsPanelElement.style.left = `${left}px`;
   statsPanelElement.style.top = `${top}px`;
   statsPanelElement.style.width = `${width}px`;
+  statsPanelElement.style.height = `${maxHeight}px`;
   statsPanelElement.style.maxHeight = `${maxHeight}px`;
 }
 
