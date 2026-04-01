@@ -6457,6 +6457,7 @@ function move(direction) {
   let moved = false;
   let hadMerge = false;
   let highestMerge = 0;
+  let gained = 0;
   const mergedTargets = new Set();
   const epicBursts = [];
   const journalAchievements = [];
@@ -6501,6 +6502,7 @@ function move(direction) {
         target.justMerged = true;
         target.isNew = false;
         updateScore(newValue);
+        gained += newValue;
         mergedTargets.add(targetKey);
         touchedRows.add(target.row);
         touchedCols.add(target.col);
