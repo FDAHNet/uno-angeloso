@@ -1469,7 +1469,9 @@ function getBoardFrameElement() {
 function setGameOverOverlay(visible, reason = "") {
   gameOverOverlayElement.classList.toggle("hidden", !visible);
   lastGameOverReason = visible ? reason : "";
-  if (!visible) {
+  if (visible) {
+    setStatsPanelOpen(false);
+  } else {
     setStatsPanelOpen(false);
   }
   if (gameOverReasonElement) {
@@ -1486,8 +1488,26 @@ function canShowLiveStats() {
   return !demoMode && !replayMode && attractDismissed && !awaitingManualStart;
 }
 
+function canShowPostGameStats() {
+  return !demoMode && !replayMode && attractDismissed && gameState.over;
+}
+
 function positionStatsPanel() {
   if (!statsPanelElement) return;
+  statsPanelElement.classList.toggle("is-postgame", canShowPostGameStats());
+  if (canShowPostGameStats()) {
+    const boardRect = boardPanelElement?.getBoundingClientRect();
+    if (!boardRect) return;
+    const width = Math.min(720, Math.max(520, Math.round(boardRect.width * 0.92)));
+    const left = Math.round(boardRect.left + ((boardRect.width - width) / 2));
+    const maxHeight = Math.min(760, Math.max(380, Math.round(boardRect.height * 0.9)));
+    const top = Math.max(24, Math.round(boardRect.top + 24));
+    statsPanelElement.style.left = `${left}px`;
+    statsPanelElement.style.top = `${top}px`;
+    statsPanelElement.style.width = `${width}px`;
+    statsPanelElement.style.maxHeight = `${maxHeight}px`;
+    return;
+  }
   if (window.innerWidth <= 1180) {
     statsPanelElement.style.left = "";
     statsPanelElement.style.top = "";
@@ -1510,7 +1530,8 @@ function positionStatsPanel() {
 }
 
 function setStatsPanelOpen(nextOpen) {
-  statsPanelOpen = Boolean(nextOpen && canShowLiveStats());
+  const canOpen = canShowLiveStats() || canShowPostGameStats();
+  statsPanelOpen = Boolean(nextOpen && canOpen);
   statsPanelElement?.classList.toggle("hidden", !statsPanelOpen);
   if (statsPanelOpen) {
     positionStatsPanel();
@@ -1520,8 +1541,11 @@ function setStatsPanelOpen(nextOpen) {
 
 function updateStatsButton() {
   if (!showStatsButton) return;
-  const visible = Boolean(canShowLiveStats());
+  const live = canShowLiveStats() && !gameState.over;
+  const postGame = canShowPostGameStats();
+  const visible = Boolean(live || postGame);
   showStatsButton.classList.toggle("hidden", !visible);
+  showStatsButton.textContent = live ? "Estadisticas en Tiempo Real" : "Ver Estadisticas";
 }
 
 function formatElapsedTime(ms) {
@@ -2390,6 +2414,7 @@ function renderStatsPanel() {
   const totalMoves = moveSequence;
   const averageScore = totalMoves ? (gameState.score / totalMoves).toFixed(1) : "0.0";
   const mode = `${boardSize}x${boardSize}`;
+  const isPostGame = gameState.over;
   const achievementValues = journalEntries.map((entry) => Number(entry.value) || 0);
   const directionStats = getMoveDirectionStats();
   const milestoneTargets = [
@@ -2424,9 +2449,34 @@ function renderStatsPanel() {
         </div>
       `)
     .join("");
-
-  statsPanelContentElement.innerHTML = `
-      <div class="stats-grid">
+  const topCards = isPostGame
+    ? `
+        <div class="stats-card">
+          <span class="stats-card-label">Modo</span>
+          <span class="stats-card-value">${mode}</span>
+        </div>
+        <div class="stats-card">
+          <span class="stats-card-label">Final</span>
+          <span class="stats-card-value">${lastGameOverReason || "BY MACHINE"}</span>
+        </div>
+        <div class="stats-card">
+          <span class="stats-card-label">Puntuacion</span>
+          <span class="stats-card-value">${gameState.score}</span>
+        </div>
+        <div class="stats-card">
+          <span class="stats-card-label">Tiempo Real</span>
+          <span class="stats-card-value">${elapsedText}</span>
+        </div>
+        <div class="stats-card">
+          <span class="stats-card-label">Jugadas</span>
+          <span class="stats-card-value">${totalMoves}</span>
+        </div>
+        <div class="stats-card">
+          <span class="stats-card-label">Puntos por jugada</span>
+          <span class="stats-card-value">${averageScore}</span>
+        </div>
+      `
+    : `
         <div class="stats-card">
           <span class="stats-card-label">Modo</span>
           <span class="stats-card-value">${mode}</span>
@@ -2443,6 +2493,16 @@ function renderStatsPanel() {
           <span class="stats-card-label">Puntos por jugada</span>
           <span class="stats-card-value">${averageScore}</span>
         </div>
+      `;
+
+  const statsTitle = document.getElementById("stats-title");
+  if (statsTitle) {
+    statsTitle.textContent = isPostGame ? "Estadisticas de la partida" : "Estadisticas en Tiempo Real";
+  }
+
+  statsPanelContentElement.innerHTML = `
+      <div class="stats-grid">
+        ${topCards}
       </div>
       <div class="stats-section">
         <h4>Logros por ficha</h4>
@@ -6963,7 +7023,7 @@ saveGameButton.addEventListener("click", () => {
   setSaveSlotsPanelOpen(!saveSlotsPanelOpen);
 });
 showStatsButton?.addEventListener("click", () => {
-  if (!canShowLiveStats()) return;
+  if (!(canShowLiveStats() || canShowPostGameStats())) return;
   setStatsPanelOpen(!statsPanelOpen);
 });
 closeStatsButton?.addEventListener("click", () => setStatsPanelOpen(false));

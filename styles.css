@@ -1721,6 +1721,10 @@ button:hover {
   z-index: 55;
 }
 
+.stats-panel.is-postgame {
+  z-index: 90;
+}
+
 .stats-panel.hidden {
   display: none;
 }
@@ -1749,6 +1753,14 @@ button:hover {
   opacity: 0;
   transform: translateX(-10px);
   pointer-events: none;
+}
+
+.stats-panel.is-postgame .stats-panel-shell {
+  transform: translateY(0);
+}
+
+.stats-panel.is-postgame.hidden .stats-panel-shell {
+  transform: translateY(10px) scale(0.985);
 }
 
 .stats-panel-head {
