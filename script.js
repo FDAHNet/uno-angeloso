@@ -3586,6 +3586,8 @@ function setStatus(message) {
     : /record|h\.o\.l\.e|demo|pausa|replay/i.test(normalized)
       ? "accent"
       : "normal";
+  const isCriticalStatus = tone === "danger" || /record global|introduce tus iniciales|error|fall/i.test(normalized);
+  if (!isCriticalStatus && (Date.now() - lastCommentaryAt) < 5500) return;
   setTickerMessage(normalized, tone);
 }
 
