@@ -644,6 +644,7 @@ let commentaryLastIndexByCategory = {};
 let lastCommentaryScoreBucket = 0;
 let lastAmbientCommentaryMove = 0;
 let lastCommentaryAt = 0;
+let statsMilestonePopoverState = null;
 let adminPanelOpen = false;
 let adminPinGateOpen = false;
 let adminPanelPausedGame = false;
@@ -2373,7 +2374,11 @@ function getMilestonePopoverEntries(min, nextMin = Infinity) {
 }
 
 function closeStatsMilestonePopover() {
+  statsMilestonePopoverState = null;
   statsMilestonePopoverElement?.classList.add("hidden");
+  if (statsMilestonePopoverElement) {
+    delete statsMilestonePopoverElement.dataset.forLabel;
+  }
   statsMilestonePopoverElement?.replaceChildren();
 }
 
@@ -2421,6 +2426,18 @@ function openStatsMilestonePopover(cardElement, milestoneLabel, entries = []) {
   statsMilestonePopoverElement.style.width = `${desiredWidth}px`;
   statsMilestonePopoverElement.style.left = `${Math.round(left)}px`;
   statsMilestonePopoverElement.style.top = `${Math.round(top)}px`;
+}
+
+function restoreStatsMilestonePopover() {
+  if (!statsPanelOpen || !statsMilestonePopoverState) return;
+  const { label, min, nextMin } = statsMilestonePopoverState;
+  const card = statsPanelContentElement?.querySelector(`.stats-milestone-card[data-milestone-label="${CSS.escape(label)}"]`);
+  if (!(card instanceof HTMLElement)) return;
+  const entries = getMilestonePopoverEntries(min, nextMin);
+  if (statsMilestonePopoverElement) {
+    statsMilestonePopoverElement.dataset.forLabel = label;
+  }
+  openStatsMilestonePopover(card, label, entries);
 }
 
 function getEmptyCellCount(state = gameState) {
@@ -2744,6 +2761,7 @@ function renderStatsPanel() {
         </div>
       </div>
     `;
+  restoreStatsMilestonePopover();
 }
 
 function buildFinalStatsEmailBody() {
@@ -7317,6 +7335,7 @@ statsPanelContentElement?.addEventListener("click", (event) => {
     return;
   }
   const entries = getMilestonePopoverEntries(min, nextMin);
+  statsMilestonePopoverState = { label, min, nextMin };
   if (statsMilestonePopoverElement) {
     statsMilestonePopoverElement.dataset.forLabel = label;
   }
