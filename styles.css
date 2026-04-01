@@ -1869,6 +1869,14 @@ button:hover {
   gap: 10px;
 }
 
+.stats-card-split-seconds {
+  grid-template-columns: minmax(0, 0.88fr) minmax(0, 1.12fr);
+}
+
+.stats-card-split-rates {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+}
+
 .stats-split-item {
   min-width: 0;
 }

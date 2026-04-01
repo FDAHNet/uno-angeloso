@@ -2674,7 +2674,7 @@ function renderStatsPanel() {
           <span class="stats-card-label">Tiempo Real</span>
           <span class="stats-card-value">${elapsedText}</span>
         </div>
-        <div class="stats-card stats-card-split">
+        <div class="stats-card stats-card-split stats-card-split-seconds">
           <div class="stats-split-item">
             <span class="stats-card-label">Jugadas</span>
             <span class="stats-card-value">${totalMoves}</span>
@@ -2684,7 +2684,7 @@ function renderStatsPanel() {
             <span class="stats-card-value">${movesPerSecond}</span>
           </div>
         </div>
-        <div class="stats-card stats-card-split">
+        <div class="stats-card stats-card-split stats-card-split-rates">
           <div class="stats-split-item">
             <span class="stats-card-label">Jugadas por minuto</span>
             <span class="stats-card-value">${movesPerMinute}</span>
