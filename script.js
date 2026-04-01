@@ -3186,6 +3186,18 @@ function buildFinalStatsEmailSummaryBody() {
   ].join("\n");
 }
 
+function buildFinalStatsEmailSubject() {
+  const playerName = getCommentaryPlayerName();
+  const sentAt = new Date().toLocaleString("es-ES", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).replace(",", "");
+  return `Estadisticas Finales 2048 Angeloso ${boardSize}x${boardSize} (${playerName} · ${sentAt})`;
+}
+
 function stopGameTimer() {
   if (gameTimerInterval) {
     window.clearInterval(gameTimerInterval);
@@ -7797,7 +7809,7 @@ shareStatsButton?.addEventListener("click", () => {
 closeStatsShareButton?.addEventListener("click", () => setStatsShareModalOpen(false));
 statsShareEmailButton?.addEventListener("click", () => {
   if (!canShowPostGameStats()) return;
-  const subject = encodeURIComponent(`Estadisticas Finales 2048 Angeloso ${boardSize}x${boardSize}`);
+  const subject = encodeURIComponent(buildFinalStatsEmailSubject());
   const body = encodeURIComponent(buildFinalStatsEmailSummaryBody());
   window.location.href = `mailto:?subject=${subject}&body=${body}`;
 });
