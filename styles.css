@@ -1822,6 +1822,13 @@ button:hover {
   box-shadow: 0 10px 18px rgba(29, 78, 216, 0.22);
 }
 
+.stats-share-icon {
+  width: 15px;
+  height: 15px;
+  display: block;
+  pointer-events: none;
+}
+
 .stats-share-button.hidden {
   display: none;
 }

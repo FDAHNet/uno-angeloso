@@ -2764,16 +2764,36 @@ function buildFinalStatsEmailBody() {
   const highestTile = getHighestTileValue();
   const milestoneStats = getMilestoneStats();
   const directionStats = getMoveDirectionStats();
+  const achievementValues = journalEntries.map((entry) => Number(entry.value) || 0);
+  const totalAchievements = achievementValues.length;
+  const elapsedMinutes = Math.max(1 / 60, getRealElapsedMs() / 60000);
+  const elapsedHours = Math.max(1 / 3600, getRealElapsedMs() / 3600000);
+  const elapsedSeconds = Math.max(1, getRealElapsedMs() / 1000);
+  const averageScore = totalMoves ? (gameState.score / totalMoves).toFixed(1) : "0.0";
+  const scorePerMinute = Number(gameState.score / elapsedMinutes).toFixed(1);
+  const movesPerSecond = Number(totalMoves / elapsedSeconds).toFixed(2);
+  const movesPerMinute = Number(totalMoves / elapsedMinutes).toFixed(1);
+  const movesPerHour = Number(totalMoves / elapsedHours).toFixed(1);
+  const empties = getEmptyCellCount();
+  const topDirectionEntry = Object.entries(directionStats).sort((a, b) => b[1] - a[1])[0] || ["up", 0];
+  const lowDirectionEntry = Object.entries(directionStats).sort((a, b) => a[1] - b[1])[0] || ["up", 0];
   const directionLines = Object.entries(directionStats)
     .map(([direction, count]) => `- ${getDirectionLabel(direction)}: ${count}`)
     .join("\n");
   const milestoneLines = milestoneStats
     .map((entry) => `- ${entry.label}: ${entry.count} (primera vez en ${entry.firstTime})`)
     .join("\n");
+  const achievementLogLines = journalEntries.length
+    ? [...journalEntries]
+      .reverse()
+      .map((entry) => `- ${formatAdminNumber(entry.value)} en ${formatBoardCoordinate(entry.row, entry.col)} · ${entry.elapsedText} · ${entry.timeText}`)
+      .join("\n")
+    : "- Sin logros de 128 o superiores";
 
   return [
     `Estadisticas Finales de 2048 Angeloso`,
     ``,
+    `Jugador: ${getCommentaryPlayerName()}`,
     `Modo: ${mode}`,
     `Categoria: ${getRecordCategoryLabel(getCurrentRecordCategory())}`,
     `Final: ${lastGameOverReason || "BY MACHINE"}`,
@@ -2783,11 +2803,27 @@ function buildFinalStatsEmailBody() {
     `Jugadas: ${formatAdminNumber(totalMoves)}`,
     `Ficha maxima: ${formatAdminNumber(highestTile)}`,
     ``,
+    `Ritmo y rendimiento`,
+    `- Puntos por jugada: ${averageScore}`,
+    `- Puntos por minuto: ${scorePerMinute}`,
+    `- Jugadas por segundo: ${movesPerSecond}`,
+    `- Jugadas por minuto: ${movesPerMinute}`,
+    `- Jugadas por hora: ${movesPerHour}`,
+    ``,
+    `Lectura de la partida`,
+    `- Casillas vacias finales: ${empties}`,
+    `- Logros 128+: ${formatAdminNumber(totalAchievements)}`,
+    `- Direccion favorita: ${getDirectionLabel(topDirectionEntry[0])} (${topDirectionEntry[1]})`,
+    `- Direccion menos usada: ${getDirectionLabel(lowDirectionEntry[0])} (${lowDirectionEntry[1]})`,
+    ``,
     `Distribucion de movimientos`,
     directionLines,
     ``,
-    `Logros por ficha`,
+    `Resumen por fichas`,
     milestoneLines,
+    ``,
+    `Bitacora de logros`,
+    achievementLogLines,
   ].join("\n");
 }
 
