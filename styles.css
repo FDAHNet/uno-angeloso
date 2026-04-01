@@ -2028,7 +2028,8 @@ button:hover {
   flex-direction: column;
   gap: 10px;
   width: min(320px, calc(100% - 28px));
-  height: min(46vh, 360px);
+  height: 340px;
+  box-sizing: border-box;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
@@ -2077,11 +2078,12 @@ button:hover {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  flex: 1 1 auto;
-  min-height: 0;
+  height: calc(100% - 44px);
+  min-height: 160px;
   overflow-y: scroll;
   overscroll-behavior: contain;
   padding-right: 4px;
+  scrollbar-gutter: stable;
 }
 
 .stats-milestone-popover-body::-webkit-scrollbar {
