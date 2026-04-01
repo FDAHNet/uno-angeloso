@@ -485,6 +485,8 @@ const gameMovesElement = document.getElementById("game-moves");
 const showStatsButton = document.getElementById("show-stats-button");
 const statsPanelElement = document.getElementById("stats-panel");
 const statsPanelContentElement = document.getElementById("stats-panel-content");
+const statsEyebrowElement = document.getElementById("stats-eyebrow");
+const shareStatsButton = document.getElementById("share-stats-button");
 const heroElement = document.querySelector(".hero");
 const boardPanelElement = document.querySelector(".board-panel");
 
@@ -639,6 +641,7 @@ let currentTickerMessage = "";
 let currentTickerTone = "normal";
 let commentaryLastIndexByCategory = {};
 let lastCommentaryScoreBucket = 0;
+let lastAmbientCommentaryMove = 0;
 let adminPanelOpen = false;
 let adminPinGateOpen = false;
 let adminPanelPausedGame = false;
@@ -1546,6 +1549,7 @@ function updateStatsButton() {
   const visible = Boolean(live || postGame);
   showStatsButton.classList.toggle("hidden", !visible);
   showStatsButton.textContent = live ? "Estadisticas en Tiempo Real" : "Ver Estadisticas";
+  shareStatsButton?.classList.toggle("hidden", !postGame);
 }
 
 function formatElapsedTime(ms) {
@@ -2323,6 +2327,32 @@ function getMoveDirectionStats() {
   return counts;
 }
 
+function getMilestoneStats() {
+  const milestones = [
+    { label: "128", min: 128 },
+    { label: "256", min: 256 },
+    { label: "512", min: 512 },
+    { label: "1024", min: 1024 },
+    { label: "2048", min: 2048 },
+    { label: "4096", min: 4096 },
+    { label: "8192", min: 8192 },
+    { label: "16384", min: 16384 },
+    { label: "32768", min: 32768 },
+    { label: "65535", min: 65535 },
+    { label: "Mas de 131.070", min: 131071 },
+  ];
+  return milestones.map((milestone) => {
+    const matches = journalEntries.filter((entry) => Number(entry.value || 0) >= milestone.min);
+    const firstMatch = matches.length ? matches[matches.length - 1] : null;
+    return {
+      ...milestone,
+      count: matches.length,
+      firstTime: firstMatch?.elapsedText || "--:--:--",
+      firstClock: firstMatch?.timeText || "--:--:--",
+    };
+  });
+}
+
 function getEmptyCellCount(state = gameState) {
   return state.cells.flat().filter((tile) => !tile).length;
 }
@@ -2355,8 +2385,42 @@ function updateMomentumFromBoard() {
     } else if (nextLabel === "Remontada" || nextLabel === "Dominando") {
       announceMatchCommentary(nextLabel === "Remontada" ? "comeback" : "build", { moves: moveSequence }, "accent");
       lastMomentumAnnouncement = nextLabel;
+    } else if (nextLabel === "Controlando" || nextLabel === "Tablero abierto") {
+      announceMatchCommentary("build", { moves: moveSequence }, "normal");
+      lastMomentumAnnouncement = nextLabel;
+    } else if (nextLabel === "Partido vivo") {
+      announceMatchCommentary("pressure", { moves: moveSequence }, "normal");
+      lastMomentumAnnouncement = nextLabel;
     }
   }
+}
+
+function maybeAnnounceAmbientCommentary(nextMoveNumber, gained = 0, highestMerge = 0, crossedScoreBucket = false) {
+  if (demoMode || holeMode) return;
+  if (highestMerge >= 128 || crossedScoreBucket) return;
+  if (nextMoveNumber <= 1) return;
+
+  const interval = nextMoveNumber < 12 ? 2 : nextMoveNumber < 40 ? 3 : 4;
+  if ((nextMoveNumber - lastAmbientCommentaryMove) < interval) return;
+
+  const matchMoment = getMatchMomentLabel();
+  const empties = getEmptyCellCount();
+  let category = "pressure";
+
+  if (currentFusionStreak >= 3 && gained > 0) {
+    category = "comeback";
+  } else if (matchMoment === "En apuros" || matchMoment === "Final agonico" || empties <= 2) {
+    category = nextMoveNumber % 2 === 0 ? "danger" : "pressure";
+  } else if (matchMoment === "Dominando" || matchMoment === "Controlando" || matchMoment === "Tablero abierto") {
+    category = "build";
+  } else if (gained > 0) {
+    category = nextMoveNumber % 3 === 0 ? "build" : "pressure";
+  } else if (nextMoveNumber % 5 === 0) {
+    category = "comeback";
+  }
+
+  lastAmbientCommentaryMove = nextMoveNumber;
+  announceMatchCommentary(category, { moves: nextMoveNumber, score: gameState.score }, category === "danger" ? "accent" : "normal");
 }
 
 async function updateAdminUserPin() {
@@ -2417,20 +2481,16 @@ function renderStatsPanel() {
   const isPostGame = gameState.over;
   const achievementValues = journalEntries.map((entry) => Number(entry.value) || 0);
   const directionStats = getMoveDirectionStats();
-  const milestoneTargets = [
-    { label: "128", min: 128 },
-    { label: "256", min: 256 },
-    { label: "512", min: 512 },
-    { label: "1024", min: 1024 },
-    { label: "2048", min: 2048 },
-    { label: "4096", min: 4096 },
-    { label: "8192", min: 8192 },
-    { label: "16384", min: 16384 },
-    { label: "32768", min: 32768 },
-    { label: "65535", min: 65535 },
-    { label: "Mas de 131.070", min: 131071 },
-  ];
-  const milestoneCards = milestoneTargets
+  const milestoneStats = getMilestoneStats();
+  const highestTile = getHighestTileValue();
+  const directionTotal = Object.values(directionStats).reduce((sum, count) => sum + count, 0);
+  const scorePerMinute = Number(elapsedText === "00:00:00" ? 0 : (gameState.score / Math.max(1 / 60, getRealElapsedMs() / 60000))).toFixed(1);
+  const movesPerMinute = Number(totalMoves / Math.max(1 / 60, getRealElapsedMs() / 60000)).toFixed(1);
+  const totalAchievements = achievementValues.length;
+  const empties = getEmptyCellCount();
+  const topDirectionEntry = Object.entries(directionStats).sort((a, b) => b[1] - a[1])[0] || ["up", 0];
+  const lowDirectionEntry = Object.entries(directionStats).sort((a, b) => a[1] - b[1])[0] || ["up", 0];
+  const milestoneCards = milestoneStats
     .map(({ label, min }) => {
       const count = achievementValues.filter((value) => value >= min).length;
       return `
@@ -2445,7 +2505,7 @@ function renderStatsPanel() {
     .map(([direction, count]) => `
         <div class="stats-list-row">
           <span>${getDirectionLabel(direction)}</span>
-          <span>${count}</span>
+          <span>${count}${directionTotal ? ` · ${Math.round((count / directionTotal) * 100)}%` : ""}</span>
         </div>
       `)
     .join("");
@@ -2495,15 +2555,54 @@ function renderStatsPanel() {
         </div>
       `;
 
+  if (statsEyebrowElement) {
+    statsEyebrowElement.textContent = isPostGame ? "Resumen final" : "Tiempo real";
+  }
   const statsTitle = document.getElementById("stats-title");
   if (statsTitle) {
-    statsTitle.textContent = isPostGame ? "Estadisticas de la partida" : "Estadisticas en Tiempo Real";
+    statsTitle.textContent = isPostGame ? "Estadisticas Finales" : "Estadisticas en Tiempo Real";
   }
+
+  const milestoneTimingRows = milestoneStats
+    .map((entry) => `
+      <div class="stats-list-row">
+        <span>${entry.label}</span>
+        <span>${entry.count} · ${entry.firstTime}</span>
+      </div>
+    `)
+    .join("");
+
+  const finalSummarySection = isPostGame
+    ? `
+      <div class="stats-section">
+        <h4>Resumen final</h4>
+        <div class="stats-summary-grid">
+          <div class="stats-summary-row"><span>Categoria</span><strong>${getRecordCategoryLabel(getCurrentRecordCategory())}</strong></div>
+          <div class="stats-summary-row"><span>Ficha maxima</span><strong>${formatAdminNumber(highestTile)}</strong></div>
+          <div class="stats-summary-row"><span>Record local</span><strong>${formatAdminNumber(gameState.bestScore)}</strong></div>
+          <div class="stats-summary-row"><span>Puntos por minuto</span><strong>${scorePerMinute}</strong></div>
+          <div class="stats-summary-row"><span>Jugadas por minuto</span><strong>${movesPerMinute}</strong></div>
+          <div class="stats-summary-row"><span>Logros 128+</span><strong>${formatAdminNumber(totalAchievements)}</strong></div>
+          <div class="stats-summary-row"><span>Casillas vacias finales</span><strong>${empties}</strong></div>
+          <div class="stats-summary-row"><span>Direccion favorita</span><strong>${getDirectionLabel(topDirectionEntry[0])}</strong></div>
+          <div class="stats-summary-row"><span>Direccion menos usada</span><strong>${getDirectionLabel(lowDirectionEntry[0])}</strong></div>
+          <div class="stats-summary-row"><span>Cronometro final</span><strong>${elapsedText}</strong></div>
+        </div>
+      </div>
+      <div class="stats-section">
+        <h4>Cuando llego cada ficha</h4>
+        <div class="stats-list">
+          ${milestoneTimingRows}
+        </div>
+      </div>
+    `
+    : "";
 
   statsPanelContentElement.innerHTML = `
       <div class="stats-grid">
         ${topCards}
       </div>
+      ${finalSummarySection}
       <div class="stats-section">
         <h4>Logros por ficha</h4>
         <div class="stats-milestones-grid">
@@ -2517,6 +2616,40 @@ function renderStatsPanel() {
         </div>
       </div>
     `;
+}
+
+function buildFinalStatsEmailBody() {
+  const elapsedText = formatElapsedTime(getRealElapsedMs());
+  const totalMoves = moveSequence;
+  const mode = `${boardSize}x${boardSize}`;
+  const highestTile = getHighestTileValue();
+  const milestoneStats = getMilestoneStats();
+  const directionStats = getMoveDirectionStats();
+  const directionLines = Object.entries(directionStats)
+    .map(([direction, count]) => `- ${getDirectionLabel(direction)}: ${count}`)
+    .join("\n");
+  const milestoneLines = milestoneStats
+    .map((entry) => `- ${entry.label}: ${entry.count} (primera vez en ${entry.firstTime})`)
+    .join("\n");
+
+  return [
+    `Estadisticas Finales de 2048 Angeloso`,
+    ``,
+    `Modo: ${mode}`,
+    `Categoria: ${getRecordCategoryLabel(getCurrentRecordCategory())}`,
+    `Final: ${lastGameOverReason || "BY MACHINE"}`,
+    `Puntuacion: ${formatAdminNumber(gameState.score)}`,
+    `Record local: ${formatAdminNumber(gameState.bestScore)}`,
+    `Tiempo real: ${elapsedText}`,
+    `Jugadas: ${formatAdminNumber(totalMoves)}`,
+    `Ficha maxima: ${formatAdminNumber(highestTile)}`,
+    ``,
+    `Distribucion de movimientos`,
+    directionLines,
+    ``,
+    `Logros por ficha`,
+    milestoneLines,
+  ].join("\n");
 }
 
 function stopGameTimer() {
@@ -3157,6 +3290,7 @@ function startGame(options = {}) {
   momentumLabel = "Arrancando";
   lastMomentumAnnouncement = "";
   lastCommentaryScoreBucket = 0;
+  lastAmbientCommentaryMove = 0;
   commentaryLastIndexByCategory = {};
   globalRecordFanfarePlayed = false;
   globalRecordsLoaded = hasAnyGlobalRecords(globalRecordsCache);
@@ -6335,14 +6469,8 @@ function move(direction) {
         announceMatchCommentary("tile128", { value: highestMerge }, "normal");
       } else if (crossedScoreBucket && scoreBucket > 0) {
         announceMatchCommentary("score", { score: gameState.score }, "normal");
-      } else if (nextMoveNumber > 0 && nextMoveNumber % 5 === 0) {
-        announceMatchCommentary("build", { moves: nextMoveNumber }, "normal");
-      } else if (nextMoveNumber > 0 && nextMoveNumber % 7 === 0) {
-        announceMatchCommentary("danger", { moves: nextMoveNumber }, "accent");
-      } else if (nextMoveNumber > 0 && nextMoveNumber % 8 === 0) {
-        announceMatchCommentary("pressure", { moves: nextMoveNumber }, "normal");
-      } else if (nextMoveNumber > 0 && nextMoveNumber % 11 === 0) {
-        announceMatchCommentary("comeback", { moves: nextMoveNumber }, "accent");
+      } else {
+        maybeAnnounceAmbientCommentary(nextMoveNumber, gained, highestMerge, crossedScoreBucket);
       }
       updateMomentumFromBoard();
     }
@@ -7033,6 +7161,12 @@ showStatsButton?.addEventListener("click", () => {
   setStatsPanelOpen(!statsPanelOpen);
 });
 closeStatsButton?.addEventListener("click", () => setStatsPanelOpen(false));
+shareStatsButton?.addEventListener("click", () => {
+  if (!canShowPostGameStats()) return;
+  const subject = encodeURIComponent(`Estadisticas Finales 2048 Angeloso ${boardSize}x${boardSize}`);
+  const body = encodeURIComponent(buildFinalStatsEmailBody());
+  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+});
 closeAdminButton?.addEventListener("click", () => {
   closeAdminUserPanel();
   setAdminPanelOpen(false);
