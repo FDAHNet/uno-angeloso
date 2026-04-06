@@ -1326,12 +1326,13 @@ button:hover {
 
 .journal-entry-elapsed {
   display: inline-block;
-  margin-left: 4px;
+  position: relative;
+  top: -4px;
+  margin-left: 2px;
   color: #ffd166;
   font-family: "Press Start 2P", "Space Grotesk", sans-serif;
   font-size: 0.34rem;
   letter-spacing: 0;
-  transform: translateY(-2px);
   text-transform: none;
 }
 
