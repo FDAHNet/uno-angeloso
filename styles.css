@@ -1329,8 +1329,9 @@ button:hover {
   margin-left: 4px;
   color: #ffd166;
   font-family: "Press Start 2P", "Space Grotesk", sans-serif;
-  font-size: 0.48rem;
-  letter-spacing: 0.04em;
+  font-size: 0.34rem;
+  letter-spacing: 0;
+  transform: translateY(-1px);
   text-transform: none;
 }
 
