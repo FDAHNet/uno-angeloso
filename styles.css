@@ -1327,8 +1327,8 @@ button:hover {
 .journal-entry-elapsed {
   display: inline-block;
   position: relative;
-  top: -4px;
-  margin-left: 2px;
+  top: -8px;
+  margin-left: 1px;
   color: #ffd166;
   font-family: "Press Start 2P", "Space Grotesk", sans-serif;
   font-size: 0.34rem;
