@@ -1166,6 +1166,8 @@ button:hover {
   width: 100%;
   min-width: 0;
   justify-self: end;
+  padding-right: 6px;
+  margin-top: -8px;
 }
 
 .game-timer {
