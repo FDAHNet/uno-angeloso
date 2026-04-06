@@ -1296,6 +1296,12 @@ button:hover {
   gap: 2px;
 }
 
+.journal-entry-top,
+.journal-entry-copy {
+  display: block;
+  width: 100%;
+}
+
 .journal-entry.is-replay-active {
   border-color: color-mix(in srgb, var(--accent) 62%, white 38%);
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 18%, rgba(255,255,255,0.08)), rgba(255,255,255,0.04));
