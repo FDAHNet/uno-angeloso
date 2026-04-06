@@ -1331,7 +1331,7 @@ button:hover {
   font-family: "Press Start 2P", "Space Grotesk", sans-serif;
   font-size: 0.34rem;
   letter-spacing: 0;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   text-transform: none;
 }
 
