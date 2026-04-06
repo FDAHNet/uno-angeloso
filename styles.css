@@ -9,7 +9,7 @@
   --accent: #ffd166;
   --accent-strong: #ff8c61;
   --glow: rgba(255, 209, 102, 0.3);
-  --board-size: min(84vw, 520px);
+  --board-size: min(88vw, 640px);
   --gap: 12px;
   --tile-size: calc((var(--board-size) - (var(--gap) * 5)) / 4);
   --tile-radius: 22px;
@@ -982,17 +982,17 @@ button:hover {
 
 .play-shell {
   position: relative;
-  width: fit-content;
+  width: min(100%, 1320px);
   max-width: 100%;
   margin: 18px auto 0;
 }
 
 .board-panel {
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
   min-width: 0;
   margin-top: 0;
-  padding: 24px;
+  padding: 18px 16px;
 }
 
 .cabinet-strip {
@@ -1031,9 +1031,9 @@ button:hover {
   position: relative;
   z-index: 1;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: flex-start;
-  gap: 22px;
+  gap: 16px;
 }
 
 .starfield {
@@ -1112,7 +1112,7 @@ button:hover {
 
 .journal-stack {
   order: 0;
-  width: min(280px, 26vw);
+  width: min(220px, 18vw);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2507,12 +2507,12 @@ button:hover {
 
 .side-actions {
   order: 3;
-  width: 190px;
+  width: 160px;
   min-height: var(--board-size);
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 12px;
+  gap: 10px;
   padding-top: 6px;
   padding-bottom: 10px;
 }
@@ -2529,7 +2529,7 @@ button:hover {
 .pause-button,
 .save-game-button,
 .records-toggle-side-button {
-  min-width: 150px;
+  min-width: 134px;
   text-align: center;
   align-self: flex-end;
 }
