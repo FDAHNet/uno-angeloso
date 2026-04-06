@@ -646,20 +646,20 @@ h1 {
   z-index: 220;
 }
 
-.controls > p {
+.controls-help {
   margin: 0;
   align-self: center;
-  font-size: 0.62rem;
-  line-height: 1.18;
+  font-size: 0.56rem;
+  line-height: 1.12;
   font-weight: 500;
   letter-spacing: 0;
   color: color-mix(in srgb, var(--muted) 88%, white 12%);
 }
 
-.controls > p kbd {
+.controls-help kbd {
   padding: 0.1rem 0.34rem;
   border-radius: 6px;
-  font-size: 0.9em;
+  font-size: 0.82em;
 }
 
 .system-ticker {
