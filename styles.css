@@ -1726,14 +1726,28 @@ button:hover {
   overflow: hidden;
   padding: 0;
   background:
-    radial-gradient(circle at 50% 45%, rgba(255,255,255,0.14), transparent 32%),
-    linear-gradient(160deg, rgba(7, 47, 34, 0.95), rgba(3, 22, 17, 0.98));
+    radial-gradient(circle at 50% 42%, rgba(255,255,255,0.16), transparent 26%),
+    radial-gradient(circle at 18% 18%, rgba(255, 213, 128, 0.08), transparent 22%),
+    radial-gradient(circle at 82% 84%, rgba(117, 245, 186, 0.08), transparent 24%),
+    repeating-linear-gradient(135deg, rgba(255,255,255,0.02) 0 2px, rgba(0,0,0,0.02) 2px 4px),
+    linear-gradient(160deg, rgba(9, 64, 46, 0.96), rgba(3, 28, 21, 0.98));
 }
 
 .uno-table {
   position: relative;
   width: 100%;
   height: 100%;
+  isolation: isolate;
+}
+
+.uno-table::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 30px;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.03), inset 0 0 34px rgba(0,0,0,0.16);
+  pointer-events: none;
 }
 
 .uno-center {
@@ -1743,6 +1757,7 @@ button:hover {
   grid-template-columns: minmax(72px, 104px) minmax(84px, 116px) minmax(96px, 1fr);
   align-items: center;
   gap: 12px;
+  z-index: 2;
 }
 
 .uno-draw-pile,
@@ -1751,14 +1766,20 @@ button:hover {
   place-items: center;
 }
 
+.uno-discard {
+  position: relative;
+}
+
 .uno-draw-pile {
   width: 100%;
   height: 128px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.18);
-  background: linear-gradient(145deg, rgba(17, 24, 39, 0.9), rgba(3, 7, 18, 0.95));
+  background:
+    radial-gradient(circle at 50% 28%, rgba(255,255,255,0.15), transparent 22%),
+    linear-gradient(145deg, rgba(20, 28, 44, 0.96), rgba(4, 8, 19, 0.98));
   color: #f5f7ff;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 18px 32px rgba(0,0,0,0.28);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 18px 32px rgba(0,0,0,0.28), 0 0 18px rgba(0,0,0,0.18);
   cursor: pointer;
 }
 
@@ -1788,8 +1809,9 @@ button:hover {
   gap: 10px;
   padding: 9px 11px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.05));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(4px);
 }
 
 .uno-center-meta span {
@@ -1809,8 +1831,10 @@ button:hover {
   gap: 8px;
   padding: 9px;
   border-radius: 14px;
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, rgba(8, 20, 28, 0.64), rgba(5, 13, 20, 0.5));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 14px 24px rgba(0,0,0,0.18);
+  backdrop-filter: blur(6px);
 }
 
 .uno-opponent-top {
@@ -1854,8 +1878,10 @@ button:hover {
 
 .uno-opponent-hand {
   display: flex;
-  gap: 4px;
+  gap: 0;
   overflow: hidden;
+  align-items: center;
+  min-height: 54px;
 }
 
 .uno-player-area {
@@ -1867,8 +1893,11 @@ button:hover {
   gap: 8px;
   padding: 10px;
   border-radius: 14px;
-  background: rgba(8, 15, 27, 0.62);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, rgba(8, 15, 27, 0.78), rgba(8, 15, 27, 0.58));
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 18px 30px rgba(0,0,0,0.18);
+  backdrop-filter: blur(8px);
+  z-index: 3;
 }
 
 .uno-player-header {
@@ -1892,9 +1921,12 @@ button:hover {
 
 .uno-player-hand {
   display: flex;
-  gap: 6px;
+  justify-content: center;
+  gap: 0;
   overflow-x: auto;
   padding-bottom: 4px;
+  padding-top: 12px;
+  min-height: 124px;
 }
 
 .uno-card {
@@ -1909,8 +1941,10 @@ button:hover {
   align-content: space-between;
   padding: 7px;
   text-align: left;
-  box-shadow: 0 18px 28px rgba(0,0,0,0.25);
-  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+  box-shadow: 0 14px 24px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.2);
+  transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, filter 160ms ease;
+  transform: translateX(var(--fan-offset, 0px)) translateY(calc(var(--fan-lift, 0px) * -1)) rotate(var(--fan-rotate, 0deg));
+  transform-origin: center 88%;
 }
 
 .uno-card-compact {
@@ -1919,6 +1953,9 @@ button:hover {
   height: 46px;
   border-radius: 9px;
   padding: 0;
+  margin-left: -10px;
+  transform: translateY(calc(var(--stack-index, 0) * 0px)) rotate(var(--stack-rotate, 0deg));
+  transform-origin: center 120%;
 }
 
 .uno-card-red { background: linear-gradient(160deg, #ff6158, #a51410); }
@@ -1942,6 +1979,7 @@ button:hover {
   font-weight: 700;
   align-self: center;
   justify-self: center;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.24);
 }
 
 .uno-card-back-label {
@@ -1961,16 +1999,33 @@ button:hover {
 .uno-card.is-clickable:focus-visible,
 .uno-draw-pile:hover,
 .uno-draw-pile:focus-visible {
-  transform: translateY(-6px);
-  box-shadow: 0 22px 32px rgba(0,0,0,0.34);
+  transform: translateX(var(--fan-offset, 0px)) translateY(calc((var(--fan-lift, 0px) * -1) - 14px)) rotate(var(--fan-rotate, 0deg)) scale(1.04);
+  box-shadow: 0 22px 32px rgba(0,0,0,0.34), 0 0 20px rgba(255,255,255,0.08);
 }
 
 .uno-card.is-playable {
   border-color: rgba(255, 244, 167, 0.95);
+  filter: saturate(1.08);
 }
 
 .uno-card.is-drawn {
   outline: 3px solid rgba(139, 255, 184, 0.9);
+}
+
+.uno-discard .uno-card {
+  transform: rotate(-3deg) scale(1.02);
+}
+
+.uno-discard::before {
+  content: "";
+  position: absolute;
+  width: 74px;
+  height: 112px;
+  border-radius: 14px;
+  transform: translate(4px, 4px) rotate(5deg);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.18);
 }
 
 .save-slot-row {
