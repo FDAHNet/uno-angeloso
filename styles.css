@@ -1290,24 +1290,10 @@ button:hover {
   padding: 10px 12px;
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  display: grid;
-  grid-template-columns: 1fr;
-  row-gap: 2px;
-}
-
-.journal-entry-badge {
-  grid-column: 1;
-  grid-row: 1 / span 3;
-  width: 34px;
-  height: 34px;
-  display: grid;
-  place-items: center;
-  border-radius: 12px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.08);
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--accent);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
 }
 
 .journal-entry.is-replay-active {
@@ -1336,15 +1322,10 @@ button:hover {
   text-transform: none;
 }
 
-.journal-entry-time,
-.journal-entry strong,
-.journal-entry-meta {
-  grid-column: 1 / -1;
-}
-
 .journal-entry strong {
   display: block;
   margin-top: 2px;
+  width: 100%;
   font-size: 0.84rem;
   line-height: 1.22;
 }
@@ -1354,18 +1335,6 @@ button:hover {
   margin-top: 4px;
   color: var(--muted);
   font-size: 0.74rem;
-}
-
-.journal-entry.tone-rare .journal-entry-badge {
-  color: #7afbff;
-}
-
-.journal-entry.tone-epic .journal-entry-badge {
-  color: #ffd166;
-}
-
-.journal-entry.tone-legend .journal-entry-badge {
-  color: #ff7fb9;
 }
 
 .journal-entry-empty,
