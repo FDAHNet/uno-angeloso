@@ -1232,7 +1232,8 @@ button:hover {
 
 #journal-title {
   min-width: 0;
-  margin-top: -16px;
+  position: relative;
+  top: -8px;
 }
 
 #journal-subtitle {
