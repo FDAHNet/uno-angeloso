@@ -11,6 +11,24 @@ const DEFAULT_ALLOWED_REFERER_PREFIX = 'https://fdahnet.github.io';
 const ALLOWED_MODES = new Set(['4x4', '5x5', '6x6', '8x8', '16x16']);
 const ALLOWED_CATEGORIES = new Set(['normal', 'hole']);
 const ALLOWED_REPLAY_VERSIONS = new Set([1, 2]);
+const DEFAULT_GAME = '2048';
+const UNO_REPLAY_MAX_SNAPSHOTS = 3000;
+const GAME_CONFIGS = {
+  '2048': {
+    repo: '2048',
+    modes: new Set(['4x4', '5x5', '6x6', '8x8', '16x16']),
+    categories: new Set(['normal', 'hole']),
+    defaultCategory: 'normal',
+    replayKind: '2048',
+  },
+  uno: {
+    repo: 'uno-angeloso',
+    modes: new Set(['4x4', '5x5', '6x6', '8x8', '16x16']),
+    categories: new Set(['normal']),
+    defaultCategory: 'normal',
+    replayKind: 'uno',
+  },
+};
 const MAX_REQUEST_BYTES = 4_000_000;
 const MAX_ISSUE_BODY = 62_000;
 const MAX_REPLAY_CHUNK = 56_000;
@@ -133,17 +151,25 @@ export default {
       if (url.pathname === '/admin/overview') return await handleAdminOverview(env, corsHeaders);
       if (url.pathname === '/replay/upload') return await handleReplayUpload(payload, env, corsHeaders);
       if (url.pathname === '/replay/fetch') return await handleReplayFetch(payload, env, corsHeaders);
+      if (url.pathname === '/records/list') return await handleRecordsList(payload, env, corsHeaders);
+      if (url.pathname === '/records/replay') return await handleRecordReplay(payload, env, corsHeaders);
 
       const validation = validatePayload(payload);
       if (validation) return json({ error: validation }, 400, corsHeaders);
+      const game = normalizeGame(payload.game);
+      const config = getGameConfig(game);
+      const category = String(payload.category || config.defaultCategory);
 
-      const title = `[Record] ${payload.initials} - ${payload.score} - ${payload.mode} - ${payload.category.toUpperCase()}`;
+      const title = game === DEFAULT_GAME
+        ? `[Record] ${payload.initials} - ${payload.score} - ${payload.mode} - ${category.toUpperCase()}`
+        : `[Record][${game.toUpperCase()}] ${payload.initials} - ${payload.score} - ${payload.mode} - ${category.toUpperCase()}`;
       const baseLines = [
         'New global score submission',
         '',
+        `Game: ${game}`,
         `Initials: ${payload.initials}`,
         `Mode: ${payload.mode}`,
-        `Category: ${payload.category}`,
+        `Category: ${category}`,
         `Score: ${payload.score}`,
         `Date: ${payload.isoDate}`,
       ];
@@ -160,23 +186,23 @@ export default {
           '',
           'Replay JSON is stored in Cloudflare R2 via worker chunks.',
         ].join('\n');
-        issue = await createIssue(env, title, issueBody, [GITHUB_LABEL]);
+        issue = await createIssue(env, config.repo, title, issueBody, [GITHUB_LABEL]);
       } else {
         const replayJson = JSON.stringify(payload.replay);
         const inlineBody = [...baseLines, '', 'Replay Storage: inline', 'Replay Parts: 1', '', 'Replay JSON:', '```json', replayJson, '```'].join('\n');
 
         if (inlineBody.length <= MAX_ISSUE_BODY) {
-          issue = await createIssue(env, title, inlineBody, [GITHUB_LABEL]);
+          issue = await createIssue(env, config.repo, title, inlineBody, [GITHUB_LABEL]);
         } else {
           const chunks = chunkString(replayJson, MAX_REPLAY_CHUNK);
           if (chunks.length > MAX_REPLAY_PARTS) {
             return json({ error: 'Replay too large to store safely' }, 413, corsHeaders);
           }
           const issueBody = [...baseLines, '', 'Replay Storage: comments', `Replay Parts: ${chunks.length}`, '', 'Replay JSON is stored across issue comments.'].join('\n');
-          issue = await createIssue(env, title, issueBody, [GITHUB_LABEL]);
+          issue = await createIssue(env, config.repo, title, issueBody, [GITHUB_LABEL]);
           for (let index = 0; index < chunks.length; index += 1) {
             const commentBody = [`Replay Part ${index + 1}/${chunks.length}`, '```json', chunks[index], '```'].join('\n');
-            await createIssueComment(env, issue.number, commentBody);
+            await createIssueComment(env, config.repo, issue.number, commentBody);
           }
         }
       }
@@ -204,6 +230,64 @@ function getCorsHeaders(origin, allowedOrigin) {
     'Access-Control-Allow-Headers': 'Content-Type',
     Vary: 'Origin',
   };
+}
+
+function normalizeGame(game) {
+  const normalized = String(game || DEFAULT_GAME).trim().toLowerCase();
+  return GAME_CONFIGS[normalized] ? normalized : normalized;
+}
+
+function getGameConfig(game) {
+  return GAME_CONFIGS[normalizeGame(game)] || null;
+}
+
+function extractInlineReplay(body) {
+  const match = body.match(/Replay JSON:\s*```json\s*([\s\S]*?)\s*```/i);
+  if (!match?.[1]) return null;
+  try {
+    return JSON.parse(match[1]);
+  } catch {
+    return null;
+  }
+}
+
+async function extractCommentReplay(env, repoName, issueNumber) {
+  const comments = await listIssueComments(env, issueNumber, repoName);
+  const parts = comments
+    .map((comment) => {
+      const index = Number(comment.body?.match(/Replay Part\s+([0-9]+)\//i)?.[1] || 0);
+      const payload = comment.body?.match(/```json\s*([\s\S]*?)\s*```/i)?.[1] || '';
+      return index > 0 && payload ? { index, payload } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.index - b.index);
+  if (!parts.length) return null;
+  try {
+    return JSON.parse(parts.map((part) => part.payload).join(''));
+  } catch {
+    return null;
+  }
+}
+
+async function fetchReplayFromR2(env, game, replayId) {
+  if (!env.REPLAY_BUCKET) return null;
+  const chunks = [];
+  for (let index = 0; index < MAX_R2_REPLAY_PARTS; index += 1) {
+    const object = await env.REPLAY_BUCKET.get(getReplayChunkKey(game, replayId, index));
+    if (!object) {
+      if (!index) return null;
+      break;
+    }
+    chunks.push(await object.text());
+    const expectedParts = Number(object.customMetadata?.partCount || 0);
+    if (expectedParts && chunks.length >= expectedParts) break;
+  }
+  if (!chunks.length) return null;
+  try {
+    return JSON.parse(chunks.join(''));
+  } catch {
+    return null;
+  }
 }
 
 async function getAdminConfigIssue(env) {
@@ -368,31 +452,40 @@ async function handleAdminAuth(payload, env, corsHeaders) {
 
 function validatePayload(payload) {
   if (!payload || typeof payload !== 'object') return 'Payload is required';
+  const game = normalizeGame(payload.game);
+  const config = getGameConfig(game);
+  if (!config) return 'Game is invalid';
   if (!/^[A-Z?]{3}$/.test(payload.initials || '')) return 'Initials must be 3 letters';
-  if (!ALLOWED_MODES.has(payload.mode || '')) return 'Mode is invalid';
-  if (!ALLOWED_CATEGORIES.has(payload.category || '')) return 'Category is invalid';
+  if (!config.modes.has(payload.mode || '')) return 'Mode is invalid';
+  const category = String(payload.category || config.defaultCategory);
+  if (!config.categories.has(category)) return 'Category is invalid';
   const score = Number(payload.score);
   if (!Number.isFinite(score) || score <= 0 || score > MAX_SCORE) return 'Score is invalid';
   if (!payload.isoDate || Number.isNaN(Date.parse(payload.isoDate))) return 'Date is required';
-  if (payload.replayRef) return validateReplayRef(payload.replayRef, payload.mode);
+  if (payload.replayRef) return validateReplayRef(payload.replayRef, payload.mode, game);
   if (!payload.replay || typeof payload.replay !== 'object') return 'Replay is required';
-  return validateReplay(payload.replay, payload.mode);
+  return validateReplay(payload.replay, payload.mode, game);
 }
 
-function validateReplayRef(replayRef, mode) {
+function validateReplayRef(replayRef, mode, game = DEFAULT_GAME) {
+  const config = getGameConfig(game);
+  if (!config) return 'Game is invalid';
   if (!replayRef || typeof replayRef !== 'object') return 'Replay reference is invalid';
   if (replayRef.storage !== 'r2') return 'Replay storage is invalid';
   if (!/^[a-z0-9][a-z0-9_-]{7,127}$/i.test(replayRef.replayId || '')) return 'Replay reference is invalid';
   const parts = Number(replayRef.parts);
   if (!Number.isInteger(parts) || parts <= 0 || parts > MAX_R2_REPLAY_PARTS) return 'Replay parts are invalid';
-  if (!ALLOWED_MODES.has(replayRef.mode || mode || '')) return 'Replay mode mismatch';
+  if (!config.modes.has(replayRef.mode || mode || '')) return 'Replay mode mismatch';
   return '';
 }
 
 function validateReplayUploadPayload(payload) {
   if (!payload || typeof payload !== 'object') return 'Payload is required';
+  const game = normalizeGame(payload.game);
+  const config = getGameConfig(game);
+  if (!config) return 'Game is invalid';
   if (!/^[a-z0-9][a-z0-9_-]{7,127}$/i.test(payload.replayId || '')) return 'Replay id is invalid';
-  if (!ALLOWED_MODES.has(payload.mode || '')) return 'Mode is invalid';
+  if (!config.modes.has(payload.mode || '')) return 'Mode is invalid';
   const partIndex = Number(payload.partIndex);
   const partCount = Number(payload.partCount);
   if (!Number.isInteger(partIndex) || partIndex < 0 || partIndex >= MAX_R2_REPLAY_PARTS) return 'Replay part index is invalid';
@@ -405,8 +498,11 @@ function validateReplayUploadPayload(payload) {
 
 function validateReplayFetchPayload(payload) {
   if (!payload || typeof payload !== 'object') return 'Payload is required';
+  const game = normalizeGame(payload.game);
+  const config = getGameConfig(game);
+  if (!config) return 'Game is invalid';
   if (!/^[a-z0-9][a-z0-9_-]{7,127}$/i.test(payload.replayId || '')) return 'Replay id is invalid';
-  if (!ALLOWED_MODES.has(payload.mode || '')) return 'Mode is invalid';
+  if (!config.modes.has(payload.mode || '')) return 'Mode is invalid';
   return '';
 }
 
@@ -416,12 +512,13 @@ async function handleReplayUpload(payload, env, corsHeaders) {
   if (!env.REPLAY_BUCKET) return json({ error: 'Replay bucket is not configured' }, 500, corsHeaders);
 
   const metadata = {
+    game: normalizeGame(payload.game),
     mode: payload.mode,
     partIndex: String(payload.partIndex),
     partCount: String(payload.partCount),
     updatedAt: new Date().toISOString(),
   };
-  await env.REPLAY_BUCKET.put(getReplayChunkKey(payload.replayId, payload.partIndex), payload.chunk, {
+  await env.REPLAY_BUCKET.put(getReplayChunkKey(normalizeGame(payload.game), payload.replayId, payload.partIndex), payload.chunk, {
     httpMetadata: { contentType: 'application/json; charset=utf-8' },
     customMetadata: metadata,
   });
@@ -441,7 +538,7 @@ async function handleReplayFetch(payload, env, corsHeaders) {
 
   const chunks = [];
   for (let index = 0; index < MAX_R2_REPLAY_PARTS; index += 1) {
-    const object = await env.REPLAY_BUCKET.get(getReplayChunkKey(payload.replayId, index));
+    const object = await env.REPLAY_BUCKET.get(getReplayChunkKey(normalizeGame(payload.game), payload.replayId, index));
     if (!object) {
       if (!index) return json({ error: 'Replay not found' }, 404, corsHeaders);
       break;
@@ -461,17 +558,20 @@ async function handleReplayFetch(payload, env, corsHeaders) {
     return json({ error: 'Stored replay is corrupted' }, 500, corsHeaders);
   }
 
-  const replayValidation = validateReplay(replay, payload.mode);
+  const replayValidation = validateReplay(replay, payload.mode, normalizeGame(payload.game));
   if (replayValidation) return json({ error: replayValidation }, 500, corsHeaders);
 
   return json({ ok: true, replay }, 200, corsHeaders);
 }
 
-function getReplayChunkKey(replayId, chunkIndex) {
-  return `replays/${replayId}/${String(chunkIndex).padStart(4, '0')}.json`;
+function getReplayChunkKey(game, replayId, chunkIndex) {
+  return `replays/${normalizeGame(game)}/${replayId}/${String(chunkIndex).padStart(4, '0')}.json`;
 }
 
-function validateReplay(replay, mode) {
+function validateReplay(replay, mode, game = DEFAULT_GAME) {
+  const config = getGameConfig(game);
+  if (!config) return 'Game is invalid';
+  if (config.replayKind === 'uno') return validateUnoReplay(replay, mode);
   if (!ALLOWED_REPLAY_VERSIONS.has(Number(replay.version || 1))) return 'Replay version is invalid';
   const boardSize = Number(replay.boardSize);
   if (!Number.isInteger(boardSize) || boardSize < 4 || boardSize > 16) return 'Replay board size is invalid';
@@ -502,6 +602,49 @@ function validateReplay(replay, mode) {
   }
 
   return '';
+}
+
+function validateUnoReplay(replay, mode) {
+  if (!replay || typeof replay !== 'object') return 'Replay is required';
+  if ((replay.modeKey || '') !== mode) return 'Replay mode mismatch';
+  if (typeof replay.modeLabel !== 'string' || !replay.modeLabel.trim()) return 'Replay mode label is invalid';
+  if (!replay.startedAt || Number.isNaN(Date.parse(replay.startedAt))) return 'Replay start date is invalid';
+  if (replay.finishedAt && Number.isNaN(Date.parse(replay.finishedAt))) return 'Replay finish date is invalid';
+  if (!Array.isArray(replay.snapshots) || !replay.snapshots.length || replay.snapshots.length > UNO_REPLAY_MAX_SNAPSHOTS) return 'Replay snapshots are invalid';
+  for (const snapshot of replay.snapshots) {
+    if (!snapshot || typeof snapshot !== 'object') return 'Replay snapshots are invalid';
+    if (typeof snapshot.label !== 'string' || !snapshot.label.trim()) return 'Replay snapshots are invalid';
+    if (!snapshot.at || Number.isNaN(Date.parse(snapshot.at))) return 'Replay snapshots are invalid';
+    if (!isUnoSnapshotState(snapshot.state, mode)) return 'Replay snapshots are invalid';
+  }
+  return '';
+}
+
+function isUnoSnapshotState(state, mode) {
+  if (!state || typeof state !== 'object') return false;
+  if ((state.modeKey || '') !== mode) return false;
+  if (!Array.isArray(state.players) || state.players.length < 2 || state.players.length > 4) return false;
+  if (!Array.isArray(state.drawPile) || !Array.isArray(state.discardPile)) return false;
+  if (!isUnoCard(state.currentCard)) return false;
+  if (!state.currentColor || !['red', 'yellow', 'green', 'blue', 'wild'].includes(state.currentColor)) return false;
+  if (!Number.isInteger(Number(state.turnIndex)) || Number(state.turnIndex) < 0 || Number(state.turnIndex) >= state.players.length) return false;
+  if (![1, -1].includes(Number(state.direction))) return false;
+  for (const player of state.players) {
+    if (!player || typeof player !== 'object' || typeof player.name !== 'string' || !Array.isArray(player.hand)) return false;
+    if (typeof player.bot !== 'boolean') return false;
+    if (!player.hand.every(isUnoCard)) return false;
+  }
+  if (!state.drawPile.every(isUnoCard) || !state.discardPile.every(isUnoCard)) return false;
+  return true;
+}
+
+function isUnoCard(card) {
+  if (!card || typeof card !== 'object') return false;
+  return typeof card.id === 'number'
+    && typeof card.value === 'string'
+    && typeof card.type === 'string'
+    && typeof card.label === 'string'
+    && ['red', 'yellow', 'green', 'blue', 'wild'].includes(card.color);
 }
 
 function hasValidPlayerHash(payload) {
@@ -1009,6 +1152,82 @@ async function handleAdminOverview(env, corsHeaders) {
   }, 200, corsHeaders);
 }
 
+function validateRecordsListPayload(payload) {
+  if (!payload || typeof payload !== 'object') return 'Payload is required';
+  const game = normalizeGame(payload.game);
+  const config = getGameConfig(game);
+  if (!config) return 'Game is invalid';
+  if (!config.modes.has(payload.mode || '')) return 'Mode is invalid';
+  const category = String(payload.category || config.defaultCategory);
+  if (!config.categories.has(category)) return 'Category is invalid';
+  const limit = Number(payload.limit || 10);
+  if (!Number.isInteger(limit) || limit <= 0 || limit > 100) return 'Limit is invalid';
+  return '';
+}
+
+async function handleRecordsList(payload, env, corsHeaders) {
+  const validation = validateRecordsListPayload(payload);
+  if (validation) return json({ error: validation }, 400, corsHeaders);
+  const game = normalizeGame(payload.game);
+  const config = getGameConfig(game);
+  const category = String(payload.category || config.defaultCategory);
+  const limit = Number(payload.limit || 10);
+  const issues = await listIssuesByLabel(env, GITHUB_LABEL, MAX_ADMIN_PAGES, config.repo);
+  const records = issues
+    .map((issue) => parseRecordIssue(issue, game))
+    .filter((record) => record && record.mode === payload.mode && record.category === category)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    })
+    .slice(0, limit)
+    .map((record) => ({
+      issueNumber: record.issueNumber,
+      initials: record.initials,
+      score: record.score,
+      mode: record.mode,
+      category: record.category,
+      game: record.game,
+      createdAt: record.createdAt,
+      replayStorage: record.replayStorage,
+      hasReplay: Boolean(record.replayStorage),
+    }));
+  return json({ ok: true, records }, 200, corsHeaders);
+}
+
+function validateRecordReplayPayload(payload) {
+  if (!payload || typeof payload !== 'object') return 'Payload is required';
+  const game = normalizeGame(payload.game);
+  const config = getGameConfig(game);
+  if (!config) return 'Game is invalid';
+  if (!config.modes.has(payload.mode || '')) return 'Mode is invalid';
+  const issueNumber = Number(payload.issueNumber);
+  if (!Number.isInteger(issueNumber) || issueNumber <= 0) return 'Issue number is invalid';
+  return '';
+}
+
+async function handleRecordReplay(payload, env, corsHeaders) {
+  const validation = validateRecordReplayPayload(payload);
+  if (validation) return json({ error: validation }, 400, corsHeaders);
+  const game = normalizeGame(payload.game);
+  const config = getGameConfig(game);
+  const issue = await getIssue(env, config.repo, Number(payload.issueNumber));
+  const record = parseRecordIssue(issue, game);
+  if (!record) return json({ error: 'Record not found' }, 404, corsHeaders);
+  let replay = null;
+  if (record.replayStorage === 'inline') {
+    replay = extractInlineReplay(issue.body || '');
+  } else if (record.replayStorage === 'comments') {
+    replay = await extractCommentReplay(env, config.repo, Number(payload.issueNumber));
+  } else if (record.replayStorage === 'r2' && record.replayRef) {
+    replay = await fetchReplayFromR2(env, game, record.replayRef.replayId);
+  }
+  if (!replay) return json({ error: 'Replay not found' }, 404, corsHeaders);
+  const replayValidation = validateReplay(replay, payload.mode, game);
+  if (replayValidation) return json({ error: replayValidation }, 500, corsHeaders);
+  return json({ ok: true, replay }, 200, corsHeaders);
+}
+
 async function getBetDefinitions(env) {
   const issue = await findBetConfigIssue(env);
   if (!issue) return DEFAULT_ADVANCED_BET_DEFINITIONS.map((definition, index) => normalizeBetDefinition(definition, index));
@@ -1036,10 +1255,10 @@ async function findBetConfigIssue(env) {
   return issues.find((item) => !item.pull_request && item.title === '[Config] Advanced Bets') || null;
 }
 
-async function listIssuesByLabel(env, label, maxPages = 10) {
+async function listIssuesByLabel(env, label, maxPages = 10, repoName = GITHUB_REPO) {
   const issues = [];
   for (let page = 1; page <= maxPages; page += 1) {
-    const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues?state=all&labels=${label}&per_page=100&page=${page}`, {
+    const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${repoName}/issues?state=all&labels=${label}&per_page=100&page=${page}`, {
       method: 'GET',
       headers: { Accept: 'application/vnd.github+json' },
     });
@@ -1228,14 +1447,29 @@ function normalizeBetDefinition(definition, index) {
   };
 }
 
-function parseRecordIssue(issue) {
+function parseRecordIssue(issue, fallbackGame = DEFAULT_GAME) {
   const body = issue.body || '';
+  const game = normalizeGame(body.match(/Game:\s*([a-z0-9_-]+)/i)?.[1] || issue.title.match(/^\[Record\]\[([A-Z0-9_-]+)\]/i)?.[1] || fallbackGame);
   const initials = body.match(/Initials:\s*([A-Z?]{3})/i)?.[1] || issue.title.match(/^\[Record\]\s+([A-Z?]{3})/i)?.[1] || '---';
   const mode = body.match(/Mode:\s*(\d+x\d+)/i)?.[1] || issue.title.match(/-\s*(\d+x\d+)\b/i)?.[1] || '4x4';
-  const category = body.match(/Category:\s*(normal|hole)/i)?.[1]?.toLowerCase() || 'normal';
+  const config = getGameConfig(game);
+  const category = body.match(/Category:\s*([a-z0-9_-]+)/i)?.[1]?.toLowerCase() || config?.defaultCategory || 'normal';
   const score = Number(body.match(/Score:\s*([0-9]+)/i)?.[1] || issue.title.match(/-\s*([0-9]+)\s*-/)?.[1] || 0);
-  if (!ALLOWED_MODES.has(mode) || !ALLOWED_CATEGORIES.has(category) || !Number.isFinite(score)) return null;
-  return { initials, mode, category, score, createdAt: issue.created_at };
+  if (!config || !config.modes.has(mode) || !config.categories.has(category) || !Number.isFinite(score)) return null;
+  const replayStorage = body.match(/Replay Storage:\s*(inline|comments|r2)/i)?.[1]?.toLowerCase() || '';
+  const replayId = body.match(/Replay Ref:\s*([a-z0-9][a-z0-9_-]{7,127})/i)?.[1] || '';
+  const replayParts = Number(body.match(/Replay Parts:\s*([0-9]+)/i)?.[1] || 0);
+  return {
+    issueNumber: issue.number,
+    initials,
+    mode,
+    category,
+    game,
+    score,
+    createdAt: issue.created_at,
+    replayStorage,
+    replayRef: replayId ? { storage: 'r2', replayId, parts: replayParts || 1, mode } : null,
+  };
 }
 
 function readIssueInt(body, label) {
@@ -1274,34 +1508,41 @@ function chunkString(value, chunkSize) {
   return chunks;
 }
 
-async function createIssue(env, title, body, labels) {
-  const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues`, {
+async function createIssue(env, repoOrTitle, titleOrBody, bodyOrLabels, maybeLabels) {
+  const repoName = maybeLabels ? repoOrTitle : GITHUB_REPO;
+  const title = maybeLabels ? titleOrBody : repoOrTitle;
+  const body = maybeLabels ? bodyOrLabels : titleOrBody;
+  const labels = maybeLabels || bodyOrLabels;
+  const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${repoName}/issues`, {
     method: 'POST',
     body: JSON.stringify({ title, body, labels }),
   });
   return response.json();
 }
 
-async function updateIssue(env, issueNumber, payload) {
-  const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues/${issueNumber}`, {
+async function updateIssue(env, issueNumber, payload, repoName = GITHUB_REPO) {
+  const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${repoName}/issues/${issueNumber}`, {
     method: 'PATCH',
     body: JSON.stringify(payload),
   });
   return response.json();
 }
 
-async function createIssueComment(env, issueNumber, body) {
-  const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues/${issueNumber}/comments`, {
+async function createIssueComment(env, repoOrIssueNumber, issueNumberOrBody, maybeBody) {
+  const repoName = maybeBody ? repoOrIssueNumber : GITHUB_REPO;
+  const issueNumber = maybeBody ? issueNumberOrBody : repoOrIssueNumber;
+  const body = maybeBody || issueNumberOrBody;
+  const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${repoName}/issues/${issueNumber}/comments`, {
     method: 'POST',
     body: JSON.stringify({ body }),
   });
   return response.json();
 }
 
-async function listIssueComments(env, issueNumber) {
+async function listIssueComments(env, issueNumber, repoName = GITHUB_REPO) {
   const comments = [];
   for (let page = 1; page <= MAX_ADMIN_PAGES; page += 1) {
-    const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues/${issueNumber}/comments?per_page=100&page=${page}`, {
+    const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${repoName}/issues/${issueNumber}/comments?per_page=100&page=${page}`, {
       method: 'GET',
       headers: { Accept: 'application/vnd.github+json' },
     });
@@ -1312,13 +1553,21 @@ async function listIssueComments(env, issueNumber) {
   return comments;
 }
 
+async function getIssue(env, repoName, issueNumber) {
+  const response = await githubRequest(env, `/repos/${GITHUB_OWNER}/${repoName}/issues/${issueNumber}`, {
+    method: 'GET',
+    headers: { Accept: 'application/vnd.github+json' },
+  });
+  return response.json();
+}
+
 async function githubRequest(env, path, init) {
   const response = await fetch(`https://api.github.com${path}`, {
     ...init,
     headers: {
       Authorization: `Bearer ${env.GITHUB_TOKEN}`,
       'Content-Type': 'application/json',
-      'User-Agent': '2048-angeloso-worker',
+      'User-Agent': 'angeloso-records-worker',
       Accept: 'application/vnd.github+json',
       ...(init.headers || {}),
     },
