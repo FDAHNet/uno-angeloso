@@ -1152,11 +1152,16 @@ button:hover {
   margin: 0;
 }
 
-.journal-title-row {
+.journal-header {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
-  gap: 12px;
+  column-gap: 12px;
+  row-gap: 8px;
+}
+
+.journal-title-row {
+  display: contents;
 }
 
 .journal-timer-block {
@@ -1166,6 +1171,8 @@ button:hover {
   gap: 6px;
   width: max-content;
   min-width: 0;
+  grid-column: 2;
+  grid-row: 1 / span 2;
   justify-self: end;
   margin-right: 2px;
 }
@@ -1230,7 +1237,14 @@ button:hover {
   color: var(--muted);
 }
 
+#journal-title {
+  grid-column: 1;
+  grid-row: 1;
+}
+
 #journal-subtitle {
+  grid-column: 1;
+  grid-row: 2;
   font-size: 0.76rem;
   line-height: 1.3;
   letter-spacing: 0.01em;
