@@ -1153,30 +1153,19 @@ button:hover {
 }
 
 .journal-header {
-  position: relative;
-  display: block;
-  min-height: 5.6rem;
-}
-
-.journal-copy-block {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  min-width: 0;
-  padding-right: 10.4rem;
+  grid-template-columns: 1fr;
+  row-gap: 8px;
 }
 
 .journal-timer-block {
-  position: absolute;
-  top: 0;
-  right: 6px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
-  width: 8.1rem;
-  min-width: 8.1rem;
-  margin-right: 0;
+  width: 100%;
+  min-width: 0;
+  justify-self: end;
 }
 
 .game-timer {
@@ -1241,15 +1230,14 @@ button:hover {
 
 #journal-title {
   min-width: 0;
-  padding-right: 4px;
 }
 
 #journal-subtitle {
   font-size: 0.76rem;
   line-height: 1.3;
   letter-spacing: 0.01em;
-  max-width: none;
-  text-wrap: pretty;
+  max-width: 100%;
+  text-wrap: balance;
 }
 
 .journal-list {
