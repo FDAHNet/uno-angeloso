@@ -1319,7 +1319,7 @@ button:hover {
 .journal-entry time {
   display: block;
   color: var(--accent);
-  font-size: 0.78rem;
+  font-size: 0.66rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1329,7 +1329,7 @@ button:hover {
   margin-left: 4px;
   color: #ffd166;
   font-family: "Press Start 2P", "Space Grotesk", sans-serif;
-  font-size: 0.58rem;
+  font-size: 0.48rem;
   letter-spacing: 0.04em;
   text-transform: none;
 }
@@ -1343,6 +1343,8 @@ button:hover {
 .journal-entry strong {
   display: block;
   margin-top: 4px;
+  font-size: 0.84rem;
+  line-height: 1.22;
 }
 
 .journal-entry-meta {
