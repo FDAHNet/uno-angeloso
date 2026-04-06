@@ -1,4 +1,6 @@
 {
+  "name": "uno-angeloso",
+  "private": true,
   "scripts": {
     "cf:dev": "wrangler dev",
     "cf:deploy": "wrangler deploy"

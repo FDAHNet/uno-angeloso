@@ -1,9 +1,10 @@
-# 2048 Smooth
+# UNO Angeloso
 
-Juego 2048 en HTML, CSS y JavaScript con:
+Juego de UNO en HTML, CSS y JavaScript con:
 
-- animaciones suaves con easing,
-- efectos especiales temporales para fichas altas,
-- sonido generado con Web Audio,
-- selector de tamano de tablero.
+- modo demo tipo recreativa,
+- mesa visual con bots y cartas especiales,
+- records, replay, undo y save slots,
+- sonido generado con Web Audio y reproductor de musica,
+- estadisticas finales y panel de compartir.
 

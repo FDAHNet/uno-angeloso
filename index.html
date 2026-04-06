@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>2048 Smooth</title>
+  <title>UNO Smooth</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -16,8 +16,8 @@
   <section id="attract-overlay" class="attract-overlay">
     <div class="attract-card">
       <p class="attract-topline">Angeloso Arcade System</p>
-      <h2>2048 Angeloso</h2>
-      <p class="attract-copy">Modo demo activo. Mira la partida, entra cuando quieras y rompe el hi-score.</p>
+      <h2>UNO Angeloso</h2>
+      <p class="attract-copy">Modo demo activo. Mira la mesa, entra cuando quieras y rompe el hi-score.</p>
       <div class="attract-actions">
         <button id="start-attract-button" type="button">Pulsa para jugar</button>
       </div>
@@ -27,10 +27,10 @@
   <main class="app-shell">
     <section class="hero">
       <div>
-        <p class="eyebrow">Arcade Puzzle <span class="version-stamp">__BUILD_STAMP__</span></p>
-        <h1>2048 <span class="title-accent">Angeloso</span></h1>
+        <p class="eyebrow">Arcade Cards <span class="version-stamp">__BUILD_STAMP__</span></p>
+        <h1>UNO <span class="title-accent">Angeloso</span></h1>
         <p class="lead">
-          El juego clasico de 2048 con alguna sorpresa.
+          El clasico UNO reconvertido al estilo Angeloso, con demo, replays, records, musica y estadisticas.
         </p>
       </div>
       <div class="hud">
@@ -47,7 +47,7 @@
           <span>Puntuaci&oacute;n</span>
           <strong id="score">0</strong>
         </div>
-        <div id="best-score-card" class="score-card best-score-card" role="button" tabindex="0" aria-label="Ver records del tablero actual">
+        <div id="best-score-card" class="score-card best-score-card" role="button" tabindex="0" aria-label="Ver records de la mesa actual">
           <span>Record</span>
           <strong id="best-score">0</strong>
           <span class="records-toggle-mini-strip best-score-mini-strip" aria-hidden="true">
@@ -63,7 +63,7 @@
     </section>
 
     <section class="controls">
-      <p>Usa <kbd>&uarr; &larr; &darr; &rarr;</kbd></p>
+      <p>Juega con click o toque. Tambien puedes usar <kbd>&larr; &rarr;</kbd>, <kbd>Enter</kbd> y <kbd>Espacio</kbd> en menus y records.</p>
       <div class="control-actions">
         <label class="size-picker" for="theme-select">
           <span>Tema</span>
@@ -83,13 +83,13 @@
           </select>
         </label>
         <label class="size-picker" for="board-size">
-          <span>Tablero</span>
+          <span>Mesa</span>
           <select id="board-size">
-            <option value="4">4 x 4</option>
-            <option value="5">5 x 5</option>
-            <option value="6">6 x 6</option>
-            <option value="8">8 x 8</option>
-            <option value="16">16 x 16</option>
+            <option value="4">Duelo rapido</option>
+            <option value="5">Clasico</option>
+            <option value="6">Caos a 4</option>
+            <option value="8">Mesa larga</option>
+            <option value="16">Maraton</option>
           </select>
         </label>
         <label class="advanced-toggle" for="advanced-mode-toggle">
@@ -97,7 +97,7 @@
           <span>Modo Avanzado</span>
           <span class="advanced-toggle-hint">El Modo Avanzado es jugar con Apuestas contra tu credito. Si se te acaba, ya no puedes jugar mas en modo avanzado.</span>
         </label>
-        <button id="restart-button" type="button">Nueva partida</button>
+        <button id="restart-button" type="button">Nueva ronda</button>
       </div>
     </section>
     <section class="system-ticker" aria-live="polite">
@@ -229,7 +229,7 @@
           <div id="board-coords-right" class="board-coords-col board-coords-right" aria-hidden="true"></div>
           <div class="board-frame">
             <div class="board-stage">
-              <div id="board" class="board" aria-label="Tablero de 2048"></div>
+              <div id="board" class="board" aria-label="Mesa de UNO"></div>
               <div id="fx-layer" class="fx-layer" aria-hidden="true"></div>
               <div id="replay-arrow-overlay" class="replay-arrow-overlay hidden" aria-hidden="true">
                 <div class="replay-arrow-shaft"></div>
@@ -254,7 +254,7 @@
         </div>
         <aside class="side-actions">
           <div class="board-actions">
-            <button id="finish-button" type="button">Ok, GANE.<br>Finaliza el juego</button>
+            <button id="finish-button" type="button">Robar / pasar</button>
           </div>
           <button id="audio-toggle-button" type="button" class="secondary-button audio-toggle-button" aria-pressed="false">🔈 OFF</button>
           <div class="music-control-block">
@@ -282,7 +282,7 @@
               <div class="save-slots-header">
                 <div>
                   <p class="initials-eyebrow">Save Slots</p>
-                  <h3 id="save-slots-title">PARTIDAS</h3>
+              <h3 id="save-slots-title">PARTIDAS</h3>
                 </div>
                 <button id="close-save-slots-button" type="button" class="secondary-button replay-close-button">Cerrar</button>
               </div>
@@ -306,7 +306,7 @@
               <div class="replay-header">
                 <div>
                   <p class="initials-eyebrow">Replay</p>
-                  <h3 id="replay-title">Ver partida</h3>
+              <h3 id="replay-title">Ver ronda</h3>
                 </div>
                 <button id="close-replay-button" type="button" class="secondary-button replay-close-button">Cerrar</button>
               </div>
@@ -367,7 +367,7 @@
     <section id="records-panel" class="records-panel records-panel-collapsed" aria-labelledby="records-title">
         <div class="records-header">
           <h2 id="records-title">Records</h2>
-          <p>Clasificacion global por modalidad.</p>
+          <p>Clasificacion por modos de UNO.</p>
         </div>
         <div class="records-table global-records-table">
           <div class="global-records-headline">
@@ -502,7 +502,7 @@
           <div class="record-card-modal-header">
             <div>
               <p class="initials-eyebrow">Record</p>
-              <h3 id="record-card-modal-title">Records por tablero</h3>
+              <h3 id="record-card-modal-title">Records por mesa</h3>
               <p id="record-card-modal-subtitle" class="record-card-modal-subtitle">Modo actual</p>
             </div>
             <button id="close-record-card-modal" type="button" class="stats-close-button" aria-label="Cerrar records del tablero">X</button>
